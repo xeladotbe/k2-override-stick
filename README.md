@@ -107,6 +107,7 @@ bootstrap if you didn't create it yourself):
     ├── 00_defaults.cfg         ← all settings with their defaults, don't edit
     ├── 00_state.cfg
     ├── 00_user_config.cfg      ← your settings
+    ├── 00_user_config.cfg.example  ← every setting explained, template for the above
     ├── 10_print_plan.cfg
     ├── 20_bed_mesh.cfg
     ├── 30_print_flow.cfg
