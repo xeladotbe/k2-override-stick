@@ -25,8 +25,10 @@ k2-override-stick/
 │   │   └── printer/              # installed onto the printer by bootstrap.sh
 │   │       ├── hotplug.sh        # → /etc/hotplug.d/block/95-k2-overrides
 │   │       └── init.sh           # → /etc/init.d/k2-overrides (procd rc.common, START=99)
+│   │   └── user_config_template.cfg  # copied to 00_user_config.cfg on the stick when missing
+│   ├── 00_defaults.cfg           # USER_CONFIG with every setting's default
 │   ├── 00_state.cfg              # save_variables, SET_OVERRIDE_ACTIVE, per-print state _K2 + helpers
-│   ├── 00_user_config.cfg        # USER_CONFIG
+│   ├── 00_user_config.cfg        # the user's USER_CONFIG overrides (not in git, created by bootstrap.sh)
 │   ├── 10_print_plan.cfg         # _K2_PLAN
 │   ├── 20_bed_mesh.cfg           # BED_MESH_CALIBRATE / BED_MESH_CALIBRATE_START_PRINT hooks, K2_CLEAR_MESH_CACHE
 │   ├── 30_print_flow.cfg         # START_PRINT, soak, start sequence, Z-offset
@@ -87,15 +89,19 @@ or `teardown.sh` (no stick).
    |---|---|
    | 1 | `START_PRINT`, `PRINT_PREPARE_CLEAR`, `BED_MESH_CALIBRATE_START_PRINT`, `END_PRINT`, `RESUME_EXTERNAL_PROCESS`, `PRINT_TEMP_SET` |
 
-6. Syncs every `*.cfg` from the stick into `config/custom/` (only if the
-   content differs).
+6. Creates `00_user_config.cfg` on the stick from `user_config_template.cfg`
+   if it is missing, then syncs every `*.cfg` from the stick into
+   `config/custom/` (only if the content differs).
 7. Removes retired files: a manifest (`.k2-overrides/installed.list`) lists
    what bootstrap installed; a file in it that is gone from the stick loses its
    copy and its include. Files someone else put into `custom/` are never
    touched.
-8. One literal `[include custom/<name>.cfg]` per file in `printer.cfg`,
-   inserted **before** the `#*# <---- SAVE_CONFIG ---->` trailer (see facts
-   below for both).
+8. One literal `[include custom/<name>.cfg]` per file in `printer.cfg`, in
+   file name order, as one block **before** the `#*# <---- SAVE_CONFIG ---->`
+   trailer (see facts below for both). If any is missing or out of order, the
+   block is rewritten: `00_user_config.cfg` must be read after
+   `00_defaults.cfg` (see Settings resolution), and a file added later would
+   otherwise land at the end.
 9. Caches `teardown.sh` + `common.sh` on the printer (the stick is gone when
    they are needed).
 10. `FIRMWARE_RESTART` via Moonraker if anything changed, waits for `ready`
@@ -185,13 +191,19 @@ idle ─────────────── START_PRINT ─────�
 
 ## Settings resolution
 
+`USER_CONFIG` is defined twice: `00_defaults.cfg` with every setting, then
+the user's `00_user_config.cfg`. Klipper merges same-named sections key by key
+(later file wins), so the user file overrides whole settings, never parts of
+one. It is git-ignored and only created on the stick, so an update can't
+overwrite it.
+
 For every setting in `USER_CONFIG`:
 `[MATERIAL][BED_TYPE]` → `[MATERIAL]['default']` → top-level `'default'`
 (→ `[BED_TYPE]` / `['default']` inside it, if it is a dict).
 Known gap: a material's per-plate dict without its own `'default'` falls back
 to the top-level `'default'` as a whole; if that is a dict too, the value
-becomes `0` (Jinja's `|float` on a dict). Hence the README rule "always give a
-per-plate entry its own `'default'`".
+becomes `0` (Jinja's `|float` on a dict). The README asks to give a per-plate
+top-level `'default'` its own `'default'`.
 
 Then the `K2_*` params from the `START_PRINT` line win, most specific last:
 `K2_<NAME>` < `K2_<NAME>_<M>` < `K2_<NAME>_<M>_<B>` (`<M>`/`<B>` upper case,

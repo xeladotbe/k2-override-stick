@@ -88,10 +88,11 @@ printer but pass everything straight through to the stock macros.
 2. Copy the `k2-overrides` folder from inside the unpacked folder to the
    **root** of the stick. Only that folder is needed, and its name must stay
    `k2-overrides`: that is how the printer recognizes the stick.
-3. Adjust `k2-overrides/00_user_config.cfg` on the stick to your needs (see
-   [Configuration](#configuration)). You can also do that later.
+3. Optionally create your own settings (see [Configuration](#configuration)).
+   You can also do that later; without them the defaults apply.
 
-The stick then looks like this:
+The stick then looks like this (`00_user_config.cfg` appears after the first
+bootstrap if you didn't create it yourself):
 
 ```
 <stick>/
@@ -102,6 +103,7 @@ The stick then looks like this:
     │   ├── uninstall.sh
     │   ├── common.sh
     │   └── printer/            ← trigger scripts, installed on the printer by bootstrap.sh
+    ├── 00_defaults.cfg         ← all settings with their defaults, don't edit
     ├── 00_state.cfg
     ├── 00_user_config.cfg      ← your settings
     ├── 10_print_plan.cfg
@@ -149,7 +151,30 @@ off to use the mesh cache.
 
 ## Configuration
 
-All settings are in `k2-overrides/00_user_config.cfg`. Each setting can be
+Your settings go into `k2-overrides/00_user_config.cfg` on the stick. List only
+what you want to change, everything else keeps its default from
+`00_defaults.cfg`. The bootstrap creates the file with commented-out examples if
+it is missing; to write it yourself, start it with the section header and end it
+with an empty `gcode:`:
+
+```
+[gcode_macro USER_CONFIG]
+variable_z_offset: {
+    'default': 0.05,
+    'PETG': 0.03,
+    }
+
+gcode:
+```
+
+The file isn't part of the download, so a new version never overwrites it.
+
+A setting you list replaces its default **completely**: with
+`variable_soak_minutes: {'PETG': 8}` every other material gets no soak, since
+the `'default': 5` is gone as well. Copy the whole setting from
+`00_defaults.cfg` and change what you need.
+
+Each setting can be
 
 - **one number for everything:**
 
@@ -178,8 +203,9 @@ All settings are in `k2-overrides/00_user_config.cfg`. Each setting can be
       }
   ```
 
-> **Always give a per-plate entry its own `'default'`.** Without it, a plate that
-> isn't listed gets `0`, not the value of the outer `'default'`.
+A plate that isn't listed uses the material's `'default'`, otherwise the outer
+`'default'`. If the outer `'default'` is itself per plate, give it its own
+`'default'` too, or plates it doesn't list get `0`.
 
 ### Settings
 
@@ -307,7 +333,8 @@ the printer shows the print as **paused**; that is intended.
 
 **Got a new version of this project:** download the ZIP again as in
 [installation step 1](#1-prepare-the-usb-stick), pull the stick, copy the new
-files onto it but keep your own `00_user_config.cfg`, and plug it back in. The
+`k2-overrides` folder onto it and plug it back in. Your `00_user_config.cfg`
+isn't in the download, so it stays as it is. The
 printer applies them automatically and only restarts Klipper if something
 actually changed. If a new version renames or removes files, delete the old ones
 from the stick as well; the printer-side copies are cleaned up automatically.
@@ -349,7 +376,7 @@ ssh root@<printer-ip> "logread | grep k2-overrides"
 | Klipper shows an error after plugging in | The log shows `Klipper not ready after restart: ...` with the reason; `klippy.log` (Fluidd → logs) has the details. To get back to stock quickly, see [Uninstalling](#uninstalling). |
 | `Unknown command ..._STOCK` | A stock macro wasn't renamed. Run `ssh root@<printer-ip> "rm /mnt/UDISK/.k2-overrides/version"` and the bootstrap again. |
 | Z-offset or soak ignore the material/plate | Does the `Plan:` line show your material and plate? If not, check the [slicer setup](#slicer-setup). Plate names must match exactly, including upper/lower case. |
-| A setting shows `0` unexpectedly | A per-plate entry without its own `'default'`, see [Configuration](#configuration). |
+| A setting shows `0` unexpectedly | Your `00_user_config.cfg` lists the setting without a `'default'` (it replaces the default completely), or an outer `'default'` per plate lacks its own `'default'`. See [Configuration](#configuration). |
 | `ERROR: ...` lines at the print start | A `K2_` parameter or `MATERIAL`/`BED_TYPE` value was rejected; the line says why. |
 
 ## Uninstalling
