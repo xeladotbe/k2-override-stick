@@ -219,7 +219,8 @@ does a print that was cancelled during its soak.
 ### Changing settings later
 
 The copy on the stick is the one that counts. Change it, then let the bootstrap
-apply it (it restarts Klipper, so not during a print):
+apply it. It restarts Klipper, so during a print it does nothing; apply the
+change after the print.
 
 - **Stick out:** pull the stick, edit `k2-overrides/00_user_config.cfg` on your
   computer and plug it back in. Plugging in runs the bootstrap automatically.

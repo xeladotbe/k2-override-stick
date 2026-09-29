@@ -71,7 +71,8 @@ or `teardown.sh` (no stick).
    different (copy, `chmod`, atomic `mv`) and enables the boot script if
    `/etc/rc.d` has no link yet.
 3. Waits until Klipper has left its startup phase, also when it is in `error`
-   (so a broken config can still be repaired).
+   (so a broken config can still be repaired). Then stops without changing
+   anything if a print runs or is paused: the restart in step 10 would kill it.
 4. Backup of the pristine `gcode_macro.cfg` as `.k2-overrides/gcode_macro.cfg.orig`
    whenever it has no `_STOCK` section of ours (first run, or after a firmware
    update replaced it); in that case the migrations are replayed from 0 even if
