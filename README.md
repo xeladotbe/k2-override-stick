@@ -39,6 +39,7 @@ printer behaves exactly like stock again.
 - [How it works](#how-it-works)
 - [Requirements](#requirements)
 - [Installation](#installation)
+- [Manual installation (without stick or SSH)](#manual-installation-without-stick-or-ssh)
 - [Slicer setup](#slicer-setup)
 - [Configuration](#configuration)
 - [Per-print overrides](#per-print-overrides)
@@ -131,6 +132,79 @@ booting the printer does this automatically.
 See the next section. Without it, everything still works, but without material-
 and plate-specific values.
 
+## Manual installation (without stick or SSH)
+
+Everything the bootstrap does can also be done by hand in Fluidd or Mainsail,
+without a stick and without SSH. The catch: **nothing repairs itself.** A
+firmware update that resets Creality's files leaves the printer unable to
+start a print until you redo step 3 (see below). These steps do exactly what the
+bootstrap does on the printer, but haven't been walked through by hand yet;
+feedback is welcome.
+
+1. **Download** this repository as a ZIP (**Code → Download ZIP**) and unpack
+   it on your computer.
+2. **Upload the files.** In Fluidd/Mainsail open the configuration files, create
+   a folder `custom` and upload into it every `.cfg` file from the
+   `k2-overrides` folder (`00_defaults.cfg`, `00_state.cfg`,
+   `10_print_plan.cfg`, `20_bed_mesh.cfg`, `30_print_flow.cfg`,
+   `40_print_hooks.cfg`). Also upload `00_user_config.cfg.example` and rename
+   it to `00_user_config.cfg`; it explains every setting. The `scripts` folder
+   isn't needed.
+3. **Rename six stock macros.** Download `gcode_macro.cfg` once as a backup,
+   then open it and change only these six section headers:
+
+   | Before | After |
+   |---|---|
+   | `[gcode_macro START_PRINT]` | `[gcode_macro START_PRINT_STOCK]` |
+   | `[gcode_macro PRINT_PREPARE_CLEAR]` | `[gcode_macro PRINT_PREPARE_CLEAR_STOCK]` |
+   | `[gcode_macro BED_MESH_CALIBRATE_START_PRINT]` | `[gcode_macro BED_MESH_CALIBRATE_START_PRINT_STOCK]` |
+   | `[gcode_macro END_PRINT]` | `[gcode_macro END_PRINT_STOCK]` |
+   | `[gcode_macro RESUME_EXTERNAL_PROCESS]` | `[gcode_macro RESUME_EXTERNAL_PROCESS_STOCK]` |
+   | `[gcode_macro PRINT_TEMP_SET]` | `[gcode_macro PRINT_TEMP_SET_STOCK]` |
+
+   Don't rename anything else, in particular not `CANCEL_PRINT` or `RESUME`.
+4. **Include the files.** Open `printer.cfg` and add these lines, in this
+   order, right above the `#*# <---------------------- SAVE_CONFIG ---------------------->`
+   line (or at the end of the file if there is none):
+
+   ```
+   [include custom/00_defaults.cfg]
+   [include custom/00_state.cfg]
+   [include custom/00_user_config.cfg]
+   [include custom/10_print_plan.cfg]
+   [include custom/20_bed_mesh.cfg]
+   [include custom/30_print_flow.cfg]
+   [include custom/40_print_hooks.cfg]
+   ```
+
+   The order matters: `00_user_config.cfg` must come after `00_defaults.cfg`.
+5. **Restart and switch on.** Save, run `FIRMWARE_RESTART` in the console, then
+   `SET_OVERRIDE_ACTIVE VALUE=1`. Until then the printer behaves like stock. The
+   console confirms with `[K2_OVERRIDES] Override active: 1`.
+
+Then set up the slicer as below.
+
+**Changing settings:** edit `custom/00_user_config.cfg` in Fluidd/Mainsail and
+run `FIRMWARE_RESTART`.
+
+**New version:** upload the new `.cfg` files over the old ones (not your
+`00_user_config.cfg`), add includes for new files in the same order, and run
+`FIRMWARE_RESTART`. Check the release notes for renamed macros.
+
+**After every firmware update:** before the next print, open `gcode_macro.cfg`
+and check that the six `_STOCK` names from step 3 are still there, and
+`printer.cfg` for the includes from step 4. If the update restored Creality's
+files, redo those steps. Otherwise the print stops with
+`Unknown command "START_PRINT_STOCK"`.
+
+**Uninstalling:** run `K2_CLEAR_MESH_CACHE` in the console, remove the
+includes from `printer.cfg`, rename the six sections back (or restore your
+backup of `gcode_macro.cfg`), delete the `custom` folder's files from this
+project (and `custom/.variables.cfg`), then `FIRMWARE_RESTART`.
+
+Don't mix both ways: once a stick with `k2-overrides` is plugged in, the
+bootstrap takes over and overwrites the files in `custom/` with the stick's.
+
 ## Slicer setup
 
 The printer only learns the material and the build plate from the slicer. In
@@ -153,9 +227,10 @@ off to use the mesh cache.
 
 Your settings go into `k2-overrides/00_user_config.cfg` on the stick. List only
 what you want to change, everything else keeps its default from
-`00_defaults.cfg`. The bootstrap creates the file with commented-out examples if
-it is missing; to write it yourself, start it with the section header and end it
-with an empty `gcode:`:
+`00_defaults.cfg`. The bootstrap creates the file from
+`00_user_config.cfg.example` if it is missing; that file explains every
+setting and how to write it. To write it yourself, start it with the section
+header and end it with an empty `gcode:`:
 
 ```
 [gcode_macro USER_CONFIG]
@@ -265,7 +340,7 @@ change after the print.
   ssh root@<printer-ip> "sh /mnt/exUDISK/k2-overrides/scripts/bootstrap.sh"
   ```
 
-Don't edit `custom/00_user_config.cfg` in Fluidd or in the printer's config
+With a stick installation, don't edit `custom/00_user_config.cfg` in Fluidd or in the printer's config
 folder: that is only a copy, and the next bootstrap overwrites it with the one
 from the stick. To try a value for a single print, use a
 [per-print override](#per-print-overrides) instead.
@@ -374,7 +449,7 @@ ssh root@<printer-ip> "logread | grep k2-overrides"
 | The stick isn't recognized after pulling and re-plugging it (the display shows it empty) | The previous unplug didn't unmount it cleanly. Restart the printer with the stick plugged in. |
 | Nothing happens when plugging in the stick | Is the folder called exactly `k2-overrides` and on the root of the stick? Is the stick mounted (`ssh root@<printer-ip> "mount \| grep exUDISK"`)? Was the bootstrap run once by hand ([installation step 2](#2-plug-it-in-and-run-the-bootstrap-once)), and again after the last firmware update? |
 | Klipper shows an error after plugging in | The log shows `Klipper not ready after restart: ...` with the reason; `klippy.log` (Fluidd → logs) has the details. To get back to stock quickly, see [Uninstalling](#uninstalling). |
-| `Unknown command ..._STOCK` | A stock macro wasn't renamed. Run `ssh root@<printer-ip> "rm /mnt/UDISK/.k2-overrides/version"` and the bootstrap again. |
+| `Unknown command ..._STOCK` | A stock macro wasn't renamed, e.g. a firmware update restored Creality's `gcode_macro.cfg`. Stick installation: run `ssh root@<printer-ip> "rm /mnt/UDISK/.k2-overrides/version"` and the bootstrap again. Manual installation: redo [step 3](#manual-installation-without-stick-or-ssh). |
 | Z-offset or soak ignore the material/plate | Does the `Plan:` line show your material and plate? If not, check the [slicer setup](#slicer-setup). Plate names must match exactly, including upper/lower case. |
 | A setting shows `0` unexpectedly | Your `00_user_config.cfg` lists the setting without a `'default'` (it replaces the default completely), or an outer `'default'` per plate lacks its own `'default'`. See [Configuration](#configuration). |
 | `ERROR: ...` lines at the print start | A `K2_` parameter or `MATERIAL`/`BED_TYPE` value was rejected; the line says why. |

@@ -25,10 +25,10 @@ k2-override-stick/
 │   │   └── printer/              # installed onto the printer by bootstrap.sh
 │   │       ├── hotplug.sh        # → /etc/hotplug.d/block/95-k2-overrides
 │   │       └── init.sh           # → /etc/init.d/k2-overrides (procd rc.common, START=99)
-│   │   └── user_config_template.cfg  # copied to 00_user_config.cfg on the stick when missing
 │   ├── 00_defaults.cfg           # USER_CONFIG with every setting's default
 │   ├── 00_state.cfg              # save_variables, SET_OVERRIDE_ACTIVE, per-print state _K2 + helpers
 │   ├── 00_user_config.cfg        # the user's USER_CONFIG overrides (not in git, created by bootstrap.sh)
+│   ├── 00_user_config.cfg.example  # all settings and notations as one comment; template for the above
 │   ├── 10_print_plan.cfg         # _K2_PLAN
 │   ├── 20_bed_mesh.cfg           # BED_MESH_CALIBRATE / BED_MESH_CALIBRATE_START_PRINT hooks, K2_CLEAR_MESH_CACHE
 │   ├── 30_print_flow.cfg         # START_PRINT, soak, start sequence, Z-offset
@@ -89,7 +89,7 @@ or `teardown.sh` (no stick).
    |---|---|
    | 1 | `START_PRINT`, `PRINT_PREPARE_CLEAR`, `BED_MESH_CALIBRATE_START_PRINT`, `END_PRINT`, `RESUME_EXTERNAL_PROCESS`, `PRINT_TEMP_SET` |
 
-6. Creates `00_user_config.cfg` on the stick from `user_config_template.cfg`
+6. Creates `00_user_config.cfg` on the stick from `00_user_config.cfg.example`
    if it is missing, then syncs every `*.cfg` from the stick into
    `config/custom/` (only if the content differs).
 7. Removes retired files: a manifest (`.k2-overrides/installed.list`) lists
