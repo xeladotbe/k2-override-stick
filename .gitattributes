@@ -1,0 +1,2 @@
+# Files are deployed to a Linux printer; keep LF regardless of core.autocrlf.
+* text=auto eol=lf
