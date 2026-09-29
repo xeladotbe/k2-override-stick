@@ -43,6 +43,17 @@ wait_klippy_settled() {
     return 1
 }
 
+# Waits (max ~1 min) until Klipper is ready, e.g. after a firmware_restart.
+wait_klippy_ready() {
+    tries=0
+    while [ $tries -lt 30 ]; do
+        echo "$(http_get "/printer/info")" | grep -q '"state": *"ready"' && return 0
+        sleep 2
+        tries=$((tries + 1))
+    done
+    return 1
+}
+
 # Copies every *.cfg from $1 (source dir) into $2 (dest dir) that differs
 # (by content) from what's already there, logging each copy with the $3
 # prefix. Exit status 0 if anything was copied, 1 if nothing changed --
