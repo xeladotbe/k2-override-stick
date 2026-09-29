@@ -1,0 +1,81 @@
+[gcode_macro USER_CONFIG]
+# ============================================================================
+# Your own settings. Save this file as 00_user_config.cfg (without .example)
+# next to the other .cfg files, then uncomment and adjust what you need.
+#
+# Only list what you want to change: everything else keeps its value from
+# 00_defaults.cfg. A setting you list replaces its default COMPLETELY, so when
+# you give it per material, keep a 'default' entry for all other materials.
+#
+# To use an example, remove the "# " (hash and one space) at the start of its
+# lines. The setting's name must then start at the very beginning of the line,
+# and every further line of it, the closing } included, must stay indented,
+# or Klipper doesn't start. Numbers use a dot.
+#
+# ---------------------------------------------------------------------------
+# Three ways to write a setting
+# ---------------------------------------------------------------------------
+#
+# 1. One number for everything:
+#
+# variable_soak_minutes: 5
+#
+# 2. Per material. Material names in UPPER CASE, as the slicer's filament
+#    type; 'default' covers every other material:
+#
+# variable_soak_minutes: {
+#     'default': 5,
+#     'ABS': 10,
+#     'ASA': 10,
+#     }
+#
+# 3. Per material and build plate. Plate names exactly as the slicer calls
+#    them (upper/lower case matters). A plate that isn't listed uses the
+#    material's 'default', else the outer 'default':
+#
+# variable_z_offset: {
+#     'default': 0.05,
+#     'PETG': {'Textured PEI Plate': 0.02, 'default': 0.03},
+#     'PLA': {'High Temp Plate': 0.04, 'Textured PEI Plate': 0.06, 'default': 0.05},
+#     }
+#
+#    The outer 'default' can be per plate as well. Then give it its own
+#    'default', or plates it doesn't list get 0:
+#
+# variable_z_offset: {
+#     'default': {'High Temp Plate': 0.045, 'default': 0},
+#     'PETG': {'High Temp Plate': 0.007, 'default': 0},
+#     }
+#
+# ---------------------------------------------------------------------------
+# All settings (default in brackets); each works in all three ways above
+# ---------------------------------------------------------------------------
+#
+# variable_z_offset                  [0]
+#   Z-offset in mm, applied at the end of the start sequence.
+#   Larger = nozzle farther from the bed.
+#
+# variable_soak_minutes              [5, ABS 10]
+#   Heat soak once the bed has reached its temperature. 0 = no soak.
+#   The print is paused meanwhile; cancel or resume works any time.
+#
+# variable_small_print_coverage_pct  [0, PLA 15, PETG 10]
+#   A print is "small" if its objects cover less than this % of the bed.
+#   0 = never small. Small prints skip the soak.
+#
+# variable_small_print_adaptive_mesh [1]
+#   Small prints: 1 = probe only around the print (no cache),
+#   0 = use the cached full-bed mesh.
+#
+# variable_warm_restart_minutes      [10]
+#   A print starting within this many minutes after the previous one gets a
+#   shorter soak. 0 = off.
+#
+# variable_warm_bed_tolerance        [10]
+#   How many degrees C the bed may have cooled down for the shorter soak.
+#
+# For a single print, K2_<SETTING>=<number> on the slicer's START_PRINT line
+# wins over this file, e.g. K2_Z_OFFSET_PETG=0.02 (README: "Per-print overrides").
+# ============================================================================
+
+gcode:

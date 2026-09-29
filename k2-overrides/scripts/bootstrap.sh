@@ -163,7 +163,7 @@ done
 
 # The user's own settings; not shipped, so an update can't overwrite them.
 if [ ! -f "$STICK_ROOT/00_user_config.cfg" ]; then
-    if cp "$SCRIPT_DIR/user_config_template.cfg" "$STICK_ROOT/00_user_config.cfg"; then
+    if cp "$STICK_ROOT/00_user_config.cfg.example" "$STICK_ROOT/00_user_config.cfg"; then
         logger -t k2-overrides "Created 00_user_config.cfg on the stick"
     else
         logger -t k2-overrides "WARNING: could not create 00_user_config.cfg on the stick, using the defaults"
