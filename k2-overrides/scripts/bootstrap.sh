@@ -61,6 +61,14 @@ fi
 # SET_OVERRIDE_ACTIVE calls below need them.
 wait_klippy_settled || logger -t k2-overrides "WARNING: Klipper/Moonraker not answering, continuing anyway"
 
+# Nothing while printing: the Klipper restart below would kill the print.
+if print_running; then
+    msg="A print is running, nothing changed. Re-plug the stick or run the bootstrap again after it."
+    echo "$msg"
+    logger -t k2-overrides "$msg"
+    exit 0
+fi
+
 mkdir -p "$CUSTOM_DIR" "$CACHE_DIR"
 
 # Safety copy of the pristine stock gcode_macro.cfg. It is pristine exactly
