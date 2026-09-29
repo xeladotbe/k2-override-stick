@@ -43,6 +43,16 @@ wait_klippy_settled() {
     return 1
 }
 
+# True while a print runs or is paused (our heat soak pauses it too); a Klipper
+# restart would kill it.
+print_running() {
+    state=$(http_get "/printer/objects/query?print_stats=state" | grep -o '"state": *"[a-z]*"' | head -1)
+    case "$state" in
+        *printing*|*paused*) return 0 ;;
+    esac
+    return 1
+}
+
 # Waits (max ~1 min) until Klipper is ready, e.g. after a firmware_restart.
 wait_klippy_ready() {
     tries=0

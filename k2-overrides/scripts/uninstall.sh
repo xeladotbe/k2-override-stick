@@ -37,13 +37,10 @@ if ! mkdir "$LOCK_DIR" 2>/dev/null; then
 fi
 trap 'rmdir "$LOCK_DIR"; cleanup_run_dir' EXIT
 
-state=$(http_get "/printer/objects/query?print_stats=state" | grep -o '"state": *"[a-z]*"' | head -1)
-case "$state" in
-    *printing*|*paused*)
-        echo "A print is running. Uninstall after it has finished."
-        exit 1
-        ;;
-esac
+if print_running; then
+    echo "A print is running. Uninstall after it has finished."
+    exit 1
+fi
 
 # 1. Triggers, so neither a re-plug nor the next boot sets everything up again.
 if [ -x /etc/init.d/k2-overrides ]; then
