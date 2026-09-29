@@ -161,6 +161,15 @@ while [ "$v" -le "$LATEST_VERSION" ]; do
     v=$((v + 1))
 done
 
+# The user's own settings; not shipped, so an update can't overwrite them.
+if [ ! -f "$STICK_ROOT/00_user_config.cfg" ]; then
+    if cp "$SCRIPT_DIR/user_config_template.cfg" "$STICK_ROOT/00_user_config.cfg"; then
+        logger -t k2-overrides "Created 00_user_config.cfg on the stick"
+    else
+        logger -t k2-overrides "WARNING: could not create 00_user_config.cfg on the stick, using the defaults"
+    fi
+fi
+
 if sync_cfg_files "$STICK_ROOT" "$CUSTOM_DIR" "Copied"; then
     CHANGED=1
 fi
@@ -192,38 +201,32 @@ for f in "$STICK_ROOT"/*.cfg; do
     basename "$f"
 done > "$MANIFEST"
 
-# One literal include per file: a wildcard [include custom/*.cfg] breaks every
-# SAVE_CONFIG (docs/DESIGN.md).
-NEEDED_INCLUDES=""
+# One literal include per file (a wildcard [include custom/*.cfg] breaks every
+# SAVE_CONFIG), in file name order: 00_user_config.cfg must be read after
+# 00_defaults.cfg to override it. If anything is missing or out of order, the
+# block is rewritten in front of the SAVE_CONFIG trailer (nothing may follow it).
+OURS_RE=""
+WANTED=""
 for f in "$STICK_ROOT"/*.cfg; do
     name=$(basename "$f")
-    if ! grep -q "^[ 	]*\[include custom/$name\]" "$PRINTER_CFG" 2>/dev/null; then
-        NEEDED_INCLUDES="${NEEDED_INCLUDES}[include custom/$name]
+    OURS_RE="${OURS_RE:+$OURS_RE|}$(echo "$name" | sed 's/\./\\./g')"
+    WANTED="${WANTED}[include custom/$name]
 "
-    fi
 done
+OURS_RE="^[[:space:]]*\\[include custom/($OURS_RE)\\][[:space:]]*\$"
+HAVE=$(grep -E "$OURS_RE" "$PRINTER_CFG" 2>/dev/null | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' || true)
 
-if [ -n "$NEEDED_INCLUDES" ]; then
-    # Klipper appends an auto-generated "#*# <---- SAVE_CONFIG ---->" trailer
-    # after every SAVE_CONFIG, and nothing may follow it in the file, or
-    # Klipper fails to parse/persist that block correctly. A blind append
-    # breaks this the moment such a trailer already exists -- insert before
-    # it instead.
-    marker_line_raw=$(grep -n '^#\*# <---.*SAVE_CONFIG' "$PRINTER_CFG" 2>/dev/null | head -1)
-    marker_line="${marker_line_raw%%:*}"
-
-    if [ -n "$marker_line" ]; then
-        insert_at=$((marker_line - 1))
-        head -n "$insert_at" "$PRINTER_CFG" > "$PRINTER_CFG.tmp"
-        printf '\n%s\n' "$NEEDED_INCLUDES" >> "$PRINTER_CFG.tmp"
-        tail -n "+$marker_line" "$PRINTER_CFG" >> "$PRINTER_CFG.tmp"
-        mv "$PRINTER_CFG.tmp" "$PRINTER_CFG"
-    else
-        printf '\n%s\n' "$NEEDED_INCLUDES" >> "$PRINTER_CFG"
-    fi
-
+if [ "$HAVE" != "$(printf '%s' "$WANTED")" ]; then
+    OURS_RE="$OURS_RE" WANTED="$WANTED" awk '
+        $0 ~ ENVIRON["OURS_RE"] { next }
+        /^[[:space:]]*$/ { blanks++; next }
+        !done && /^#\*# <---.*SAVE_CONFIG/ { printf "\n%s\n", ENVIRON["WANTED"]; done = 1; blanks = 0 }
+        { while (blanks > 0) { print ""; blanks-- }; print }
+        END { if (!done) printf "\n%s", ENVIRON["WANTED"] }
+    ' "$PRINTER_CFG" > "$PRINTER_CFG.tmp"
+    mv "$PRINTER_CFG.tmp" "$PRINTER_CFG"
     CHANGED=1
-    logger -t k2-overrides "Added includes for custom/*.cfg"
+    logger -t k2-overrides "Rewrote the includes for custom/*.cfg"
 fi
 
 # Cache teardown.sh (and its common.sh dependency) locally -- the stick is
