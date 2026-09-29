@@ -51,6 +51,7 @@ Klipper macros can't be unloaded at runtime, so the copied files stay on the
 printer. On/off is the persistent `save_variables` key `override_active`, set
 by `SET_OVERRIDE_ACTIVE`; with 0, every override passes straight through to
 stock (`START_PRINT` checks it, all other hooks only act inside our own flow).
+Unset counts as 1, so a manual installation works without switching it on.
 
 **Triggers.** The hotplug script reacts to `sd*` add/remove. On add it waits
 for the mount at `/mnt/exUDISK` and runs `bootstrap.sh` from the stick in the
