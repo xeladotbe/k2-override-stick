@@ -179,9 +179,19 @@ feedback is welcome.
    ```
 
    The order matters: `00_user_config.cfg` must come after `00_defaults.cfg`.
-5. **Restart and switch on.** Save, run `FIRMWARE_RESTART` in the console, then
-   `SET_OVERRIDE_ACTIVE VALUE=1`. Until then the printer behaves like stock. The
-   console confirms with `[K2_OVERRIDES] Override active: 1`.
+5. **Switch on.** Create the file `custom/.variables.cfg` with this content
+   (without it, the printer behaves like stock):
+
+   ```
+   [Variables]
+   override_active = 1
+   ```
+
+   Fluidd/Mainsail may hide files starting with a dot; they show up with
+   "show hidden files". Instead of creating the file you can also run
+   `SET_OVERRIDE_ACTIVE VALUE=1` in the console after step 6, which writes it.
+6. **Restart.** Save and run `FIRMWARE_RESTART` in the console. The next print
+   starts with a `[K2_OVERRIDES] Plan:` line in the console.
 
 Then set up the slicer as below.
 
