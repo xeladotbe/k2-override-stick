@@ -372,7 +372,7 @@ ssh root@<printer-ip> "logread | grep k2-overrides"
 | Problem | What to do |
 |---|---|
 | The stick isn't recognized after pulling and re-plugging it (the display shows it empty) | The previous unplug didn't unmount it cleanly. Restart the printer with the stick plugged in. |
-| Nothing happens when plugging in the stick | Is the folder called exactly `k2-overrides` and on the root of the stick? Is the stick mounted (`ssh root@<printer-ip> "mount | grep exUDISK"`)? Was the bootstrap run once by hand ([installation step 2](#2-plug-it-in-and-run-the-bootstrap-once)), and again after the last firmware update? |
+| Nothing happens when plugging in the stick | Is the folder called exactly `k2-overrides` and on the root of the stick? Is the stick mounted (`ssh root@<printer-ip> "mount \| grep exUDISK"`)? Was the bootstrap run once by hand ([installation step 2](#2-plug-it-in-and-run-the-bootstrap-once)), and again after the last firmware update? |
 | Klipper shows an error after plugging in | The log shows `Klipper not ready after restart: ...` with the reason; `klippy.log` (Fluidd → logs) has the details. To get back to stock quickly, see [Uninstalling](#uninstalling). |
 | `Unknown command ..._STOCK` | A stock macro wasn't renamed. Run `ssh root@<printer-ip> "rm /mnt/UDISK/.k2-overrides/version"` and the bootstrap again. |
 | Z-offset or soak ignore the material/plate | Does the `Plan:` line show your material and plate? If not, check the [slicer setup](#slicer-setup). Plate names must match exactly, including upper/lower case. |
