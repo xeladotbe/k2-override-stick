@@ -99,6 +99,7 @@ The stick then looks like this:
     ├── scripts/
     │   ├── bootstrap.sh
     │   ├── teardown.sh
+    │   ├── uninstall.sh
     │   ├── common.sh
     │   └── printer/            ← trigger scripts, installed on the printer by bootstrap.sh
     ├── 00_state.cfg
@@ -327,22 +328,17 @@ ssh root@<printer-ip> "logread | grep k2-overrides"
 **Temporarily:** pull the stick (or `SET_OVERRIDE_ACTIVE VALUE=0`). The printer
 behaves like stock.
 
-**Completely:** a factory reset removes everything. By hand,
-with the stick pulled (otherwise the next boot sets everything up again):
+**Completely:** with the stick plugged in and no print running, run
 
 ```sh
-ssh root@<printer-ip>
-cp /mnt/UDISK/.k2-overrides/gcode_macro.cfg.orig /mnt/UDISK/printer_data/config/gcode_macro.cfg
-cd /mnt/UDISK/printer_data/config
-for f in $(cat /mnt/UDISK/.k2-overrides/installed.list); do sed -i "/\[include custom\/$f\]/d" printer.cfg; rm -f custom/$f; done
-rm -rf /mnt/UDISK/.k2-overrides custom/.variables.cfg
-/etc/init.d/k2-overrides disable
-rm /etc/init.d/k2-overrides /etc/hotplug.d/block/95-k2-overrides
+ssh root@<printer-ip> "sh /mnt/exUDISK/k2-overrides/scripts/uninstall.sh"
 ```
 
-Then restart the printer. Cached mesh profiles (`bed_mesh_*`) stay in
-`printer.cfg` until you delete them with `K2_CLEAR_MESH_CACHE` beforehand or
-with `BED_MESH_PROFILE REMOVE=<name>`.
+It removes the trigger scripts, the cached mesh profiles (`bed_mesh_*`), the
+includes and files in the printer's config and gives the stock macros their
+names back, then restarts Klipper. Afterwards the stick does nothing anymore,
+even when plugged in; delete the `k2-overrides` folder from it whenever you
+like. A factory reset removes everything as well.
 
 ## Known limitations
 

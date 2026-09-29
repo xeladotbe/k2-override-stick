@@ -20,6 +20,7 @@ k2-override-stick/
 │   ├── scripts/
 │   │   ├── bootstrap.sh          # applies the stick (hotplug "add", boot script, manual)
 │   │   ├── teardown.sh           # switches the overrides off (cached on the printer)
+│   │   ├── uninstall.sh          # undoes everything bootstrap.sh did, mesh cache included (manual)
 │   │   ├── common.sh             # Moonraker HTTP helpers over nc (no curl/wget on the printer)
 │   │   └── printer/              # installed onto the printer by bootstrap.sh
 │   │       ├── hotplug.sh        # → /etc/hotplug.d/block/95-k2-overrides
@@ -99,6 +100,13 @@ or `teardown.sh` (no stick).
 10. `FIRMWARE_RESTART` via Moonraker if anything changed, waits for `ready`
    (logs Klipper's `state_message` if it doesn't come back), then
    `SET_OVERRIDE_ACTIVE VALUE=1`.
+
+`uninstall.sh` reverses this (same `/tmp` copy and lock, refuses during a
+print): triggers first, so a plugged-in stick can't set things up again, then
+`K2_CLEAR_MESH_CACHE` while our macros are still loaded, then every
+`[gcode_macro X_STOCK]` back to `X` (rather than restoring the `.orig` backup,
+which may predate a firmware update), the manifest's includes and files,
+`.variables.cfg`, `.k2-overrides/`, and a `FIRMWARE_RESTART`.
 
 Bootstrap logs through `logger` only: `logread | grep k2-overrides`.
 

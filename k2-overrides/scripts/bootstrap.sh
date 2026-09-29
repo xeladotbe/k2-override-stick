@@ -224,16 +224,6 @@ cp "$SCRIPT_DIR/teardown.sh" "$CACHE_DIR/teardown.sh"
 cp "$SCRIPT_DIR/common.sh" "$CACHE_DIR/common.sh"
 chmod +x "$CACHE_DIR/teardown.sh"
 
-wait_klippy_ready() {
-    tries=0
-    while [ $tries -lt 30 ]; do
-        echo "$(http_get "/printer/info")" | grep -q '"state": *"ready"' && return 0
-        sleep 2
-        tries=$((tries + 1))
-    done
-    return 1
-}
-
 if [ "$CHANGED" = "1" ]; then
     logger -t k2-overrides "Config changed, triggering firmware restart"
     http_post "/printer/firmware_restart" "{}"
