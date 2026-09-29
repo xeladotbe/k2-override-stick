@@ -216,6 +216,33 @@ most of the soak is skipped, after 5 of 10 minutes about half, after a very shor
 print hardly anything. Preheating from the display does not count, and neither
 does a print that was cancelled during its soak.
 
+### Changing settings later
+
+The copy on the stick is the one that counts. Change it, then let the bootstrap
+apply it (it restarts Klipper, so not during a print):
+
+- **Stick out:** pull the stick, edit `k2-overrides/00_user_config.cfg` on your
+  computer and plug it back in. Plugging in runs the bootstrap automatically.
+- **Stick in, over SSH:** edit the file on the stick and run the bootstrap:
+
+  ```sh
+  ssh root@<printer-ip>
+  vi /mnt/exUDISK/k2-overrides/00_user_config.cfg
+  sh /mnt/exUDISK/k2-overrides/scripts/bootstrap.sh
+  ```
+
+- **Stick in, edited on your computer:** copy the file over and run the bootstrap:
+
+  ```sh
+  scp -O k2-overrides/00_user_config.cfg root@<printer-ip>:/mnt/exUDISK/k2-overrides/
+  ssh root@<printer-ip> "sh /mnt/exUDISK/k2-overrides/scripts/bootstrap.sh"
+  ```
+
+Don't edit `custom/00_user_config.cfg` in Fluidd or in the printer's config
+folder: that is only a copy, and the next bootstrap overwrites it with the one
+from the stick. To try a value for a single print, use a
+[per-print override](#per-print-overrides) instead.
+
 ## Per-print overrides
 
 Any setting can be overridden for a single print by adding a `K2_` parameter
@@ -275,10 +302,11 @@ the printer shows the print as **paused**; that is intended.
 
 ## Updating and firmware updates
 
-**Changed a setting or got a new version of this project:** pull the stick,
-copy the changed files onto it on your computer and plug it back in. For a new
-version, download the ZIP again as in [installation step 1](#1-prepare-the-usb-stick)
-and keep your own `00_user_config.cfg`. The
+**Changed a setting:** see [Changing settings later](#changing-settings-later).
+
+**Got a new version of this project:** download the ZIP again as in
+[installation step 1](#1-prepare-the-usb-stick), pull the stick, copy the new
+files onto it but keep your own `00_user_config.cfg`, and plug it back in. The
 printer applies them automatically and only restarts Klipper if something
 actually changed. If a new version renames or removes files, delete the old ones
 from the stick as well; the printer-side copies are cleaned up automatically.
