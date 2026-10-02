@@ -43,6 +43,7 @@ printer behaves exactly like stock again.
 - [Slicer setup](#slicer-setup)
 - [Configuration](#configuration)
 - [Per-print overrides](#per-print-overrides)
+- [Hooks](#hooks)
 - [Console commands](#console-commands)
 - [What you see during a print](#what-you-see-during-a-print)
 - [Updating and firmware updates](#updating-and-firmware-updates)
@@ -104,6 +105,8 @@ bootstrap if you didn't create it yourself):
     │   ├── uninstall.sh
     │   ├── common.sh
     │   └── printer/            ← trigger scripts, installed on the printer by bootstrap.sh
+    ├── hooks/                  ← your own macros for the end of a print, see "Hooks"
+    │   └── wipe_nozzle.cfg.example
     ├── 00_defaults.cfg         ← all settings with their defaults, don't edit
     ├── 00_state.cfg
     ├── 00_user_config.cfg      ← your settings
@@ -378,6 +381,45 @@ and a plate (upper case, spaces and `-` become `_`):
 The most specific one wins; all of them win over `00_user_config.cfg`. Values
 must be plain numbers. Wrong names or values are reported in the console and
 ignored.
+
+## Hooks
+
+Your own G-code at the end of a print, without touching the project's files:
+put a `.cfg` file with one or more macros into the `hooks` folder on the stick.
+The bootstrap copies it to the printer (`custom/hooks/`) and includes it;
+delete it from the stick and the next bootstrap removes it again. Files ending
+in `.example` are ignored, and file names must not contain spaces.
+
+The macro's name decides when it runs:
+
+| Name starts with | Runs |
+|---|---|
+| `K2_BEFORE_PRINT_END_` | before the stock end sequence: nozzle and bed still hot, head right above the print |
+| `K2_AFTER_PRINT_END_` | after it: heaters just switched off (nozzle still hot), Z raised, head parked |
+
+Several hooks run in name order. They only run after a print that went
+through this project's start sequence, also when it is cancelled mid-print,
+but not when it is cancelled while heating or soaking, and not while the
+overrides are switched off. The console shows `[K2_OVERRIDES] Hook: <name>`.
+
+Example: `hooks/wipe_nozzle.cfg.example` wipes the nozzle on the wiper after
+every print. To use it, save a copy as `wipe_nozzle.cfg` in the same folder.
+
+```
+[gcode_macro K2_AFTER_PRINT_END_WIPE_NOZZLE]
+gcode:
+  {% if printer.extruder.can_extrude|lower == 'true' %}
+    BOX_NOZZLE_CLEAN
+  {% endif %}
+```
+
+**Keep hooks safe:** a hook that fails (unknown command, extruding with a cold
+nozzle, ...) also stops everything after it, and the touchscreen's cancel runs
+`END_PRINT` before the actual cancel. Check conditions like the nozzle
+temperature in the hook itself, as the example does.
+
+**Manual installation:** upload the file into a folder `custom/hooks/` and add
+`[include custom/hooks/<file>.cfg]` below the other includes.
 
 ## Console commands
 

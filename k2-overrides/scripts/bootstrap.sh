@@ -174,6 +174,21 @@ if sync_cfg_files "$STICK_ROOT" "$CUSTOM_DIR" "Copied"; then
     CHANGED=1
 fi
 
+# User hooks: hooks/*.cfg on the stick -> custom/hooks/ (README: "Hooks").
+mkdir -p "$CUSTOM_DIR/hooks"
+if sync_cfg_files "$STICK_ROOT/hooks" "$CUSTOM_DIR/hooks" "Copied hook"; then
+    CHANGED=1
+fi
+
+# Our .cfg files relative to the stick root, hooks/ after the main files (also the include order).
+stick_cfgs() {
+    for f in "$STICK_ROOT"/*.cfg "$STICK_ROOT"/hooks/*.cfg; do
+        if [ -f "$f" ]; then
+            echo "${f#"$STICK_ROOT"/}"
+        fi
+    done
+}
+
 # A .cfg that an earlier bootstrap installed but that is gone from the stick
 # (renamed/retired) would otherwise stay included forever, stale macros and
 # all. The manifest lists what we installed, so files someone else put into
@@ -197,9 +212,7 @@ for name in $PREVIOUS; do
         logger -t k2-overrides "Removed retired custom/$name"
     fi
 done
-for f in "$STICK_ROOT"/*.cfg; do
-    basename "$f"
-done > "$MANIFEST"
+stick_cfgs > "$MANIFEST"
 
 # One literal include per file (a wildcard [include custom/*.cfg] breaks every
 # SAVE_CONFIG), in file name order: 00_user_config.cfg must be read after
@@ -207,8 +220,7 @@ done > "$MANIFEST"
 # block is rewritten in front of the SAVE_CONFIG trailer (nothing may follow it).
 OURS_RE=""
 WANTED=""
-for f in "$STICK_ROOT"/*.cfg; do
-    name=$(basename "$f")
+for name in $(stick_cfgs); do
     OURS_RE="${OURS_RE:+$OURS_RE|}$(echo "$name" | sed 's/\./\\./g')"
     WANTED="${WANTED}[include custom/$name]
 "

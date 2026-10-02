@@ -71,6 +71,7 @@ for name in $(cat "$CACHE_DIR/installed.list" 2>/dev/null); do
     mv "$PRINTER_CFG.tmp" "$PRINTER_CFG"
     rm -f "$CUSTOM_DIR/$name"
 done
+rmdir "$CUSTOM_DIR/hooks" 2>/dev/null || true
 rm -f "$CUSTOM_DIR/.variables.cfg"
 rm -rf "$CACHE_DIR"
 log "Uninstall: removed the includes and config files"

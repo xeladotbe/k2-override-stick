@@ -1,0 +1,9 @@
+[gcode_macro K2_AFTER_PRINT_END_WIPE_NOZZLE]
+# Example hook: wipes the nozzle on the wiper after the stock end sequence (heaters just off, nozzle still hot).
+# To use it, save a copy as wipe_nozzle.cfg in this folder; files ending in .example are ignored.
+gcode:
+  {% if printer.extruder.can_extrude|lower == 'true' %}
+    BOX_NOZZLE_CLEAN
+  {% else %}
+    {action_respond_info("[K2_OVERRIDES] Nozzle below extrusion temperature, wipe skipped")}
+  {% endif %}

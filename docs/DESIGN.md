@@ -25,6 +25,7 @@ k2-override-stick/
 │   │   └── printer/              # installed onto the printer by bootstrap.sh
 │   │       ├── hotplug.sh        # → /etc/hotplug.d/block/95-k2-overrides
 │   │       └── init.sh           # → /etc/init.d/k2-overrides (procd rc.common, START=99)
+│   ├── hooks/                    # user hooks K2_BEFORE/AFTER_PRINT_END_* (*.cfg not in git, only *.example)
 │   ├── 00_defaults.cfg           # USER_CONFIG with every setting's default
 │   ├── 00_state.cfg              # save_variables, SET_OVERRIDE_ACTIVE, per-print state _K2 + helpers
 │   ├── 00_user_config.cfg        # the user's USER_CONFIG overrides (not in git, created by bootstrap.sh)
@@ -170,9 +171,18 @@ idle ─────────────── START_PRINT ─────�
    applies the Z-offset,
    phase `printing`. Only `BED_TEMP=`/`EXTRUDER_TEMP=` numbers are forwarded
    to the stock macros, never the original params.
-6. **`END_PRINT`** (stock renamed): `_K2_RESET` (stops the tick, restores
-   `idle_timeout`, records the warm-restart data, phase `idle`, empty plan),
-   then the stock macro.
+6. **`END_PRINT`** (stock renamed): user hooks `K2_BEFORE_PRINT_END_*`,
+   `_K2_RESET` (stops the tick, restores `idle_timeout`, records the
+   warm-restart data, phase `idle`, empty plan), the stock macro, then user
+   hooks `K2_AFTER_PRINT_END_*`. Whether hooks run is decided when the
+   template renders (phase `printing`, i.e. our own start sequence finished),
+   so the after-hooks still run although `_K2_RESET` already set `idle`; the
+   second `END_PRINT` of a cancel (Creality's service and the touchscreen run
+   `END_PRINT`, then `CANCEL_PRINT`, which calls it again) sees `idle` and
+   runs none. `_K2_RUN_HOOKS` finds them in `printer.configfile.settings`
+   (section names, lower case), sorted. A wildcard `[include]` would break
+   `SAVE_CONFIG`, so `bootstrap.sh` writes one include per `hooks/*.cfg`
+   and lists them in the manifest as `hooks/<file>` (retired like any other).
 
 ## Hooks into the stock macros
 
