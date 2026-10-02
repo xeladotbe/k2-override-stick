@@ -75,6 +75,7 @@ sync_cfg_files() {
     changed=1
 
     for f in "$src_dir"/*.cfg; do
+        [ -f "$f" ] || continue
         name=$(basename "$f")
         if ! cmp -s "$f" "$dst_dir/$name" 2>/dev/null; then
             cp "$f" "$dst_dir/$name"
