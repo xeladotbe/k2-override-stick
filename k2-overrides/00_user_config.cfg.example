@@ -74,6 +74,16 @@
 # variable_warm_bed_tolerance        [10]
 #   How many degrees C the bed may have cooled down for the shorter soak.
 #
+# variable_mesh_check_tolerance      [0.025]
+#   Before a cached mesh is used, a few of its points are probed. If they
+#   differ by more than this (mm) on average, or one point by more than
+#   mesh_check_point_factor times that, the bed is measured again.
+#   0 = load without checking.
+#
+# variable_mesh_check_point_factor   [1]
+#   How far a single probed point may be off, as a multiple of
+#   mesh_check_tolerance (e.g. 1.5 or 2 = more lenient).
+#
 # For a single print, K2_<SETTING>=<number> on the slicer's START_PRINT line
 # wins over this file, e.g. K2_Z_OFFSET_PETG=0.02 (README: "Per-print overrides").
 # ============================================================================

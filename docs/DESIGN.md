@@ -25,7 +25,6 @@ k2-override-stick/
 │   │   └── printer/              # installed onto the printer by bootstrap.sh
 │   │       ├── hotplug.sh        # → /etc/hotplug.d/block/95-k2-overrides
 │   │       └── init.sh           # → /etc/init.d/k2-overrides (procd rc.common, START=99)
-│   ├── hooks/                    # user hooks K2_BEFORE/AFTER_PRINT_END_* (*.cfg not in git, only *.example)
 │   ├── 00_defaults.cfg           # USER_CONFIG with every setting's default
 │   ├── 00_state.cfg              # save_variables, SET_OVERRIDE_ACTIVE, per-print state _K2 + helpers
 │   ├── 00_user_config.cfg        # the user's USER_CONFIG overrides (not in git, created by bootstrap.sh)
@@ -147,7 +146,27 @@ idle ─────────────── START_PRINT ─────�
      mesh step, no soak.
    - `adaptive`: small print with `small_print_adaptive_mesh: 1`; calibration
      with `GCODE_FILE=` around the print, no cache, no soak.
-   - `load`: the profile exists (a small print then skips the soak).
+   - `load`: the profile exists (a small print then skips the soak). Unless
+     the print is small or `mesh_check_tolerance` is 0, `mesh_check` is set:
+     `_K2_MESH_CHECK` (`20_bed_mesh.cfg`) probes up to 5 grid points of the
+     cached profile (corners and middle of the grid points inside the
+     bounding box of the `exclude_object` polygons, stored as `print_area`;
+     none inside: the nearest one; no objects: the whole grid). Grid points
+     only, so no interpolation is needed. After each `PROBE`,
+     `_K2_MESH_CHECK_POINT` reads `probe.last_z_result` (a separate macro, so it
+     is rendered after the probe ran) and appends `[x, y, probed - cached]` to
+     `_K2.mesh_check`. `_K2_MESH_CHECK_DONE` loads the profile if the mean is
+     within the tolerance and no point is off by more than
+     `mesh_check_point_factor` (default 1) times that, else it calibrates
+     with `PROFILE=` (replacing the cache). Why: on 2026-10-02 a print right
+     after a 3.5 h print loaded the mesh cached at the start of
+     that print. A fresh mesh on the warm machine was 0.052 mm lower on average
+     (left edge up to 0.14), and the first layer had gaps until the Z-offset
+     was lowered by 0.04. Mesh-to-mesh noise on a settled bed was RMS ~0.01,
+     single points up to 0.04. Small prints are skipped because they don't
+     soak, so the bed is still settling, and their adaptive mesh costs about as
+     much as the check. The check runs where the stock flow would calibrate
+     (after homing and nozzle clean), so probe and cache share a reference.
    - `calibrate`: no profile yet; calibrated with `PROFILE=<name>`.
 
    It logs one `Plan:` line and one `ERROR:` line per rejected param.
@@ -171,18 +190,10 @@ idle ─────────────── START_PRINT ─────�
    applies the Z-offset,
    phase `printing`. Only `BED_TEMP=`/`EXTRUDER_TEMP=` numbers are forwarded
    to the stock macros, never the original params.
-6. **`END_PRINT`** (stock renamed): user hooks `K2_BEFORE_PRINT_END_*`,
-   `_K2_RESET` (stops the tick, restores `idle_timeout`, records the
-   warm-restart data, phase `idle`, empty plan), the stock macro, then user
-   hooks `K2_AFTER_PRINT_END_*`. Whether hooks run is decided when the
-   template renders (phase `printing`, i.e. our own start sequence finished),
-   so the after-hooks still run although `_K2_RESET` already set `idle`; the
-   second `END_PRINT` of a cancel (Creality's service and the touchscreen run
-   `END_PRINT`, then `CANCEL_PRINT`, which calls it again) sees `idle` and
-   runs none. `_K2_RUN_HOOKS` finds them in `printer.configfile.settings`
-   (section names, lower case), sorted. A wildcard `[include]` would break
-   `SAVE_CONFIG`, so `bootstrap.sh` writes one include per `hooks/*.cfg`
-   and lists them in the manifest as `hooks/<file>` (retired like any other).
+6. **`END_PRINT`** (stock renamed): `_K2_RESET` (stops the tick, restores
+   `idle_timeout`, records the warm-restart data, phase `idle`, empty plan),
+   then the stock macro. Nothing else runs here on purpose: see "Firmware
+   behavior" (MCU shutdowns at the end of a print).
 
 ## Hooks into the stock macros
 
@@ -334,6 +345,23 @@ with soak + 120 s and the heaters switched off mid-soak.
 
 - Creality's calibration honors `PROFILE=` but also always saves the result as
   `default`.
+- MCU shutdowns at the end of a print (removed user-hook feature, 2026-10-02
+  to 10-03): `END_PRINT` searched `printer.configfile.settings` for hook
+  macros before and after `END_PRINT_STOCK`, also with no hook installed
+  (~0.1 s of blocked host when idle, measured). Twice the printer shut down
+  right at the second search, while `END_PRINT_POINT` lowered the bed for
+  ~17 s and Creality's synced `SET_PIN`s were queued: "Timer too close", then
+  `MCU 'nozzle_mcu' shutdown: Stepper too far in past` (log code
+  `key353`). Before that feature: ~85 print ends, no shutdown; firmware
+  unchanged. Not proven, but the likely cause: a blocked host while a long move
+  runs. Keep `END_PRINT` and anything after the stock end sequence light.
+- Every stock `BOX_NOZZLE_CLEAN` call (closed-source Python in the box module)
+  has `M400` first, mostly `M400`, `G90`, `BOX_GO_TO_EXTRUDE_POS`,
+  `BOX_NOZZLE_CLEAN`, `BOX_MOVE_TO_SAFE_POS`.
+- The stock start (`START_PRINT_STOCK`) cleans the nozzle twice: at 140 °C
+  before the precise Z homing, and at print temperature right before the
+  print, after heating at the extrude position. With PETG the second one drops
+  crumbs on the bed (not with PLA).
 - How the app prepares a print job (firmware V1.1.6.4, hardware tests
   2026-09-29 with temporary logging macros): it heats and homes, calls
   `PRINT_TEMP_SET EXTRUDER_TEMP=… BED_TEMP=…` (the job's temperatures), measures
