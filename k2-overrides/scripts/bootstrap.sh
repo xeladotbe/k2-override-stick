@@ -13,6 +13,10 @@ if [ -z "$K2_STICK_ROOT" ]; then
     K2_STICK_ROOT="$(cd "$src_scripts/.." && pwd)" exec sh "$run_dir/bootstrap.sh" "$@"
 fi
 
+# -f / --force: run even if a print seems to be running (the Klipper restart kills it).
+FORCE=0
+case "$1" in -f|--force) FORCE=1 ;; esac
+
 CONFIG_DIR="/mnt/UDISK/printer_data/config"
 CUSTOM_DIR="$CONFIG_DIR/custom"
 PRINTER_CFG="$CONFIG_DIR/printer.cfg"
@@ -62,8 +66,8 @@ fi
 wait_klippy_settled || logger -t k2-overrides "WARNING: Klipper/Moonraker not answering, continuing anyway"
 
 # Nothing while printing: the Klipper restart below would kill the print.
-if print_running; then
-    msg="A print is running, nothing changed. Re-plug the stick or run the bootstrap again after it."
+if [ "$FORCE" = "0" ] && print_running; then
+    msg="A print is running, nothing changed. Re-plug the stick or run the bootstrap again after it (or with -f)."
     echo "$msg"
     logger -t k2-overrides "$msg"
     exit 0
