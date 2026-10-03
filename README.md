@@ -12,8 +12,6 @@ they can be set up again after a firmware update or factory reset.
   reused afterwards, instead of probing before every print.
 - **Small prints**: skip the soak and optionally probe only the area around the
   print.
-- **Back-to-back prints**: a print that starts right after the previous one gets
-  a shorter soak, since the bed is still warm.
 - **Firmware updates**: everything lives on the stick, the printer only keeps
   two small trigger scripts. The update from V1.1.6.4 to V1.1.7.0 kept those
   scripts, so re-plugging the stick was enough to redo the changes the update
@@ -43,6 +41,7 @@ printer behaves exactly like stock again.
 - [Slicer setup](#slicer-setup)
 - [Configuration](#configuration)
 - [Per-print overrides](#per-print-overrides)
+- [Per-filament Z-offset](#per-filament-z-offset)
 - [Console commands](#console-commands)
 - [What you see during a print](#what-you-see-during-a-print)
 - [Updating and firmware updates](#updating-and-firmware-updates)
@@ -305,10 +304,10 @@ A plate that isn't listed uses the material's `'default'`, otherwise the outer
 | `soak_minutes` | `5` (ABS `10`) | Minutes to wait once the bed has reached its temperature. `0` = no soak. |
 | `small_print_coverage_pct` | `0` (PLA `15`, PETG `10`) | A print is "small" if its objects cover less than this percentage of the bed. `0` = never small. Small prints skip the soak. |
 | `small_print_adaptive_mesh` | `1` | For small prints: `1` = probe only around the print (no cache); `0` = use the cached full-bed mesh (the soak is only skipped if that mesh already exists). |
-| `warm_restart_minutes` | `10` | A print starting within this many minutes after the previous one gets a shorter soak, see below. `0` = off. |
-| `warm_bed_tolerance` | `10` | The bed may have cooled down by at most this many °C for the shorter soak. |
-| `mesh_check_tolerance` | `0.025` | Before a cached mesh is used, up to 5 of its points over the print area are probed. If they differ by more than this many mm on average, or one point by more than `mesh_check_point_factor` times that, the bed is measured again and the cache replaced. `0` = load without checking. |
+| `mesh_check_tolerance` | `0.025` | Before a cached mesh is used, up to 9 of its points over the print area (3x3) are probed. If they differ by more than this many mm on average, or one point by more than `mesh_check_point_factor` times that, the mesh is not used as it is (see the next two). `0` = load without checking. |
 | `mesh_check_point_factor` | `1` | How far a single probed point may be off, as a multiple of `mesh_check_tolerance`. `1` = no point beyond the tolerance; `1.5` or `2` = more lenient. |
+| `mesh_check_shape_tolerance` | `0.015` | If the probed points are all shifted by about the same amount (each within this many mm of their mean), the bed only moved: the cached mesh is used and the shift added to the Z-offset for this print. Never if the Z-offset would end up below 0, and not for shifts over 4x `mesh_check_tolerance`: then the bed is measured again and the cache replaced. `0` = always measure again. |
+| `mesh_max_uses` | `20` | After a cached mesh was used in this many prints, it is measured again (the check only probes a few points). `0` = never. |
 
 After editing, copy the file to the stick and apply it (see
 [Updating](#updating-and-firmware-updates)).
@@ -328,15 +327,6 @@ when a plate looks different: see `K2_CLEAR_MESH_CACHE` under
 the display) always measures fresh and is not cached, and doesn't replace the
 cache for the next print. When the app measures while preparing a print ("Print
 Calibration"), that print uses the app's fresh mesh instead, without a soak.
-
-### Back-to-back prints
-
-If the previous print ended less than `warm_restart_minutes` ago at the same bed
-temperature, the soak is shortened. How much depends on how long the bed was
-hot in the previous print and how long ago it ended: right after a long print
-most of the soak is skipped, after 5 of 10 minutes about half, after a very short
-print hardly anything. Preheating from the display does not count, and neither
-does a print that was cancelled during its soak.
 
 ### Changing settings later
 
@@ -389,6 +379,31 @@ The most specific one wins; all of them win over `00_user_config.cfg`. Values
 must be plain numbers. Wrong names or values are reported in the console and
 ignored.
 
+## Per-filament Z-offset
+
+The slicer only passes the material type (`PETG`), so all PETGs share one
+Z-offset in `00_user_config.cfg`. Brands and variants (e.g. Hyper PETG vs. a
+standard PETG) can still need different values, mostly because of different
+print temperatures and flow. Calibrate the filament's flow ratio first; then
+set the filament's own Z-offset in the **filament profile's start G-code** in
+the slicer:
+
+```
+K2_FILAMENT_Z_OFFSET Z=0.045
+```
+
+It runs after the start sequence, right before the first layer, and replaces
+the material's Z-offset for this print. A shift found by the mesh check is
+added on top (a plain `SET_GCODE_OFFSET Z=` would drop it). If the result would
+be below 0, it is set to 0 instead (the nozzle then prints slightly higher than
+wanted, never lower). Profiles without
+the line use the material's value. Find the value with a Z-offset test print
+of that filament.
+
+The value lives in the slicer profile, so keep your slicer profiles in sync on
+every computer you print from (e.g. by exporting and importing them); the same
+goes for the printer profile's `START_PRINT` line.
+
 ## Console commands
 
 Type these in the Fluidd/Mainsail console:
@@ -399,6 +414,7 @@ Type these in the Fluidd/Mainsail console:
 | `APPLY_MATERIAL_Z_OFFSET MATERIAL=PETG BED_TYPE="High Temp Plate"` | Shows and applies the Z-offset for that combination (only outside a print). |
 | `K2_CLEAR_MESH_CACHE` | Deletes all cached meshes (never the `default` profile). |
 | `K2_CLEAR_MESH_CACHE FILTER=70c` | Deletes only the cached meshes whose name contains `70c`. |
+| `K2_FILAMENT_Z_OFFSET Z=0.045` | Sets this print's Z-offset, keeping a mesh-check shift (meant for the filament profile's start G-code, see [Per-filament Z-offset](#per-filament-z-offset)). |
 
 ## What you see during a print
 
