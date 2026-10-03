@@ -128,6 +128,10 @@ It takes up to a minute and restarts Klipper once. The log should end with
 `[K2_OVERRIDES] Override active: 1`. From now on, plugging in the stick or
 booting the printer does this automatically.
 
+While a print runs, the bootstrap changes nothing (its Klipper restart would
+end the print). A Klipper that has shut down doesn't count as printing. To run
+it anyway, add `-f`: `sh /mnt/exUDISK/k2-overrides/scripts/bootstrap.sh -f`.
+
 ### 3. Set up the slicer
 
 See the next section. Without it, everything still works, but without material-

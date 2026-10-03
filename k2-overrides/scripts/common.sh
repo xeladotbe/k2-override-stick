@@ -46,7 +46,10 @@ wait_klippy_settled() {
 # True while a print runs or is paused (our heat soak pauses it too); a Klipper
 # restart would kill it.
 print_running() {
-    state=$(http_get "/printer/objects/query?print_stats=state" | grep -o '"state": *"[a-z]*"' | head -1)
+    # A Klipper in shutdown/error keeps the crashed print's printing/paused, but nothing is running anymore.
+    reply=$(http_get "/printer/objects/query?print_stats=state&webhooks=state")
+    echo "$reply" | grep -q '"webhooks": *{ *"state": *"ready"' || return 1
+    state=$(echo "$reply" | grep -o '"print_stats": *{ *"state": *"[a-z]*"')
     case "$state" in
         *printing*|*paused*) return 0 ;;
     esac
