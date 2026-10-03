@@ -174,17 +174,12 @@ if sync_cfg_files "$STICK_ROOT" "$CUSTOM_DIR" "Copied"; then
     CHANGED=1
 fi
 
-# User hooks: hooks/*.cfg on the stick -> custom/hooks/ (README: "Hooks").
-mkdir -p "$CUSTOM_DIR/hooks"
-if sync_cfg_files "$STICK_ROOT/hooks" "$CUSTOM_DIR/hooks" "Copied hook"; then
-    CHANGED=1
-fi
-
-# Our .cfg files relative to the stick root, hooks/ after the main files (also the include order).
+# Our .cfg files on the stick, in include order. The manifest can still list
+# hooks/<file> from the removed hook feature; those are retired below.
 stick_cfgs() {
-    for f in "$STICK_ROOT"/*.cfg "$STICK_ROOT"/hooks/*.cfg; do
+    for f in "$STICK_ROOT"/*.cfg; do
         if [ -f "$f" ]; then
-            echo "${f#"$STICK_ROOT"/}"
+            basename "$f"
         fi
     done
 }
@@ -196,9 +191,10 @@ stick_cfgs() {
 MANIFEST="$CACHE_DIR/installed.list"
 PREVIOUS=$(cat "$MANIFEST" 2>/dev/null || true)
 for name in $PREVIOUS; do
-    if [ -f "$STICK_ROOT/$name" ]; then
-        continue
-    fi
+    case "$name" in
+        */*) ;;  # hooks/<file>: always retired
+        *) if [ -f "$STICK_ROOT/$name" ]; then continue; fi ;;
+    esac
     pattern="^[[:space:]]*\[include custom/$(echo "$name" | sed 's/\./\\./g')\]"
     if grep -q "$pattern" "$PRINTER_CFG" 2>/dev/null; then
         grep -v "$pattern" "$PRINTER_CFG" > "$PRINTER_CFG.tmp3" || true
@@ -212,6 +208,7 @@ for name in $PREVIOUS; do
         logger -t k2-overrides "Removed retired custom/$name"
     fi
 done
+rmdir "$CUSTOM_DIR/hooks" 2>/dev/null || true
 stick_cfgs > "$MANIFEST"
 
 # One literal include per file (a wildcard [include custom/*.cfg] breaks every

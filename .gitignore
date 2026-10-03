@@ -1,4 +1,3 @@
 .claude/
 gcodes_creality.cfg
 k2-overrides/00_user_config.cfg
-k2-overrides/hooks/*.cfg
