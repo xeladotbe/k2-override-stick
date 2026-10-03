@@ -8,7 +8,6 @@ decisions. For installation and configuration see the [README](../README.md).
 - [How a print runs](#how-a-print-runs)
 - [Hooks into the stock macros](#hooks-into-the-stock-macros)
 - [Settings resolution](#settings-resolution)
-- [Warm restart](#warm-restart)
 - [Klipper and firmware facts](#klipper-and-firmware-facts)
 - [Development](#development)
 
@@ -148,17 +147,29 @@ idle ─────────────── START_PRINT ─────�
      with `GCODE_FILE=` around the print, no cache, no soak.
    - `load`: the profile exists (a small print then skips the soak). Unless
      the print is small or `mesh_check_tolerance` is 0, `mesh_check` is set:
-     `_K2_MESH_CHECK` (`20_bed_mesh.cfg`) probes up to 5 grid points of the
-     cached profile (corners and middle of the grid points inside the
+     `_K2_MESH_CHECK` (`20_bed_mesh.cfg`) probes up to 9 grid points of the
+     cached profile (3x3: first, middle and last grid column/row inside the
      bounding box of the `exclude_object` polygons, stored as `print_area`;
-     none inside: the nearest one; no objects: the whole grid). Grid points
+     fewer than 3 per axis, e.g. a small square: the 3 nearest around its
+     middle; no objects: the whole grid). Grid points
      only, so no interpolation is needed. After each `PROBE`,
      `_K2_MESH_CHECK_POINT` reads `probe.last_z_result` (a separate macro, so it
      is rendered after the probe ran) and appends `[x, y, probed - cached]` to
      `_K2.mesh_check`. `_K2_MESH_CHECK_DONE` loads the profile if the mean is
      within the tolerance and no point is off by more than
-     `mesh_check_point_factor` (default 1) times that, else it calibrates
-     with `PROFILE=` (replacing the cache). Why: on 2026-10-02 a print right
+     `mesh_check_point_factor` (default 1) times that. If the points are only
+     shifted (each within `mesh_check_shape_tolerance`, 0.015, of their mean)
+     it loads the profile too and stores the mean as `_K2.mesh_shift`, which
+     `_K2_APPLY_Z_OFFSET` adds to the Z-offset; never if the Z-offset would end
+     up below 0 (the nozzle must not dig into the plate) or the shift exceeds 4x
+     the tolerance. Otherwise it calibrates with `PROFILE=` (replacing the
+     cache). Each print that uses a cached profile counts in save_variables
+     (`k2_mesh_uses`); after `mesh_max_uses` (20) `_K2_PLAN` plans `calibrate`
+     instead, because 9 points miss local changes. Shift case on hardware
+     (2026-10-03): the 5-point check said -0.039, the full mesh measured right
+     after was -0.037 lower over the print area with the same shape (spread of
+     the difference 0.023), between sessions the reference moved by +0.05 and
+     -0.04. Why the check at all: on 2026-10-02 a print right
      after a 3.5 h print loaded the mesh cached at the start of
      that print. A fresh mesh on the warm machine was 0.052 mm lower on average
      (left edge up to 0.14), and the first layer had gaps until the Z-offset
@@ -191,7 +202,7 @@ idle ─────────────── START_PRINT ─────�
    phase `printing`. Only `BED_TEMP=`/`EXTRUDER_TEMP=` numbers are forwarded
    to the stock macros, never the original params.
 6. **`END_PRINT`** (stock renamed): `_K2_RESET` (stops the tick, restores
-   `idle_timeout`, records the warm-restart data, phase `idle`, empty plan),
+   `idle_timeout`, phase `idle`, empty plan),
    then the stock macro. Nothing else runs here on purpose: see "Firmware
    behavior" (MCU shutdowns at the end of a print).
 
@@ -234,25 +245,6 @@ otherwise. `MATERIAL`/`BED_TYPE`: letters, digits and ` _.+-` only, since they
 end up in G-code lines and the stored plan. The `Plan:`/`Z-offset` lines name
 the winning `K2_*` param, so a typo in the material or plate part shows up as a
 missing "(K2_...)".
-
-## Warm restart
-
-`_K2_MARK_HOT` records when the bed reached temperature (in the tick when the
-soak starts, otherwise at the end of the start sequence). `_K2_RESET`, at the
-end of a print that got as far as `printing` (normal end, `CANCEL_PRINT`,
-any abort that runs `END_PRINT`), stores the printer clock (`toolhead.estimated_print_time`),
-the bed temperature and how long the bed was hot. `_K2_PLAN` then gives
-
-```
-credit = min(hot_time / soak, 1) * (1 - minutes_since_end / warm_restart_minutes)
-soak   = soak * (1 - credit)
-```
-
-if the bed target is the same, the gap is shorter than `warm_restart_minutes`
-and the bed is at most `warm_bed_tolerance` °C below the target. The clock is
-the MCU clock and restarts with Klipper; the gap is then negative and the full
-soak applies. Preheating from the display never counts (no finished print),
-a print cancelled during its soak neither (never reached `printing`).
 
 ## Klipper and firmware facts
 
@@ -384,7 +376,7 @@ with soak + 120 s and the heaters switched off mid-soak.
   `_K2.job_prepared`; the `BED_MESH_CALIBRATE` hook sets `_K2.fresh_mesh` and
   `fresh_mesh_temp` (bed target) after a calibration outside our flow only while
   it is set. The next print keeps that mesh (no soak, no cache) only if it runs
-  at that bed temperature and the bed is at most `warm_bed_tolerance` below it
+  at that bed temperature and the bed is at most 10 °C below it
   (the app's measurement turns the heaters off at its end); otherwise a console
   line says why not. `_K2_BEGIN` consumes both marks, any print end or abort
   (`_K2_RESET`) clears them. A time window after the calibration was tried and
