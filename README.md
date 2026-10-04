@@ -301,12 +301,13 @@ A plate that isn't listed uses the material's `'default'`, otherwise the outer
 | Setting | Default | Meaning |
 |---|---|---|
 | `z_offset` | `0` | Z-offset in mm, applied at the end of the start sequence. Larger = nozzle farther from the bed. |
+| `min_z_offset` | `-0.05` | Lowest Z-offset ever applied: `K2_FILAMENT_Z_OFFSET` clamps to it, and the mesh check measures again instead of shifting the Z-offset below it. |
 | `soak_minutes` | `5` (ABS `10`) | Minutes to wait once the bed has reached its temperature. `0` = no soak. |
 | `small_print_coverage_pct` | `0` (PLA `15`, PETG `10`) | A print is "small" if its objects cover less than this percentage of the bed. `0` = never small. Small prints skip the soak. |
 | `small_print_adaptive_mesh` | `1` | For small prints: `1` = probe only around the print (no cache); `0` = use the cached full-bed mesh (the soak is only skipped if that mesh already exists). |
 | `mesh_check_tolerance` | `0.025` | Before a cached mesh is used, up to 9 of its points over the print area (3x3) are probed. If they differ by more than this many mm on average, or one point by more than `mesh_check_point_factor` times that, the mesh is not used as it is (see the next two). `0` = load without checking. |
 | `mesh_check_point_factor` | `1` | How far a single probed point may be off, as a multiple of `mesh_check_tolerance`. `1` = no point beyond the tolerance; `1.5` or `2` = more lenient. |
-| `mesh_check_shape_tolerance` | `0.015` | If the probed points are all shifted by about the same amount (each within this many mm of their mean), the bed only moved: the cached mesh is used and the shift added to the Z-offset for this print. Never if the Z-offset would end up below 0, and not for shifts over 4x `mesh_check_tolerance`: then the bed is measured again and the cache replaced. `0` = always measure again. |
+| `mesh_check_shape_tolerance` | `0.015` | If the probed points are all shifted by about the same amount (each within this many mm of their mean), the bed only moved: the cached mesh is used and the shift added to the Z-offset for this print. Never if the Z-offset would end up below `min_z_offset`, and not for shifts over 4x `mesh_check_tolerance`: then the bed is measured again and the cache replaced. `0` = always measure again. |
 | `mesh_max_uses` | `20` | After a cached mesh was used in this many prints, it is measured again (the check only probes a few points). `0` = never. |
 
 After editing, copy the file to the stick and apply it (see
@@ -394,9 +395,9 @@ K2_FILAMENT_Z_OFFSET Z=0.045
 
 It runs after the start sequence, right before the first layer, and replaces
 the material's Z-offset for this print. A shift found by the mesh check is
-added on top (a plain `SET_GCODE_OFFSET Z=` would drop it). If the result would
-be below 0, it is set to 0 instead (the nozzle then prints slightly higher than
-wanted, never lower). Profiles without
+added on top (a plain `SET_GCODE_OFFSET Z=` would drop it). Small negative
+values are fine (e.g. `Z=-0.005`); if the result would be below `min_z_offset`
+(default -0.05), it is set to that instead. Profiles without
 the line use the material's value. Find the value with a Z-offset test print
 of that filament.
 

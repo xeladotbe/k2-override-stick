@@ -55,7 +55,11 @@
 #   Z-offset in mm, applied at the end of the start sequence.
 #   Larger = nozzle farther from the bed.
 #
-# variable_soak_minutes              [5, ABS 10]
+# variable_min_z_offset              [-0.05]
+#   Lowest Z-offset ever applied: K2_FILAMENT_Z_OFFSET clamps to it, and the
+#   mesh check measures again instead of shifting the Z-offset below it.
+#
+# variable_soak_minutes             [5, ABS 10]
 #   Heat soak once the bed has reached its temperature. 0 = no soak.
 #   The print is paused meanwhile; cancel or resume works any time.
 #
@@ -80,7 +84,7 @@
 # variable_mesh_check_shape_tolerance [0.015]
 #   If the probed points are only shifted (each within this of their mean),
 #   the cached mesh is used and the shift added to the Z-offset, unless the
-#   Z-offset would go below 0 (then the bed is measured again).
+#   Z-offset would go below min_z_offset (then the bed is measured again).
 #   0 = always measure again.
 #
 # variable_mesh_max_uses             [20]
