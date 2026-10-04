@@ -161,7 +161,9 @@ idle ─────────────── START_PRINT ─────�
      shifted (each within `mesh_check_shape_tolerance`, 0.015, of their mean)
      it loads the profile too and stores the mean as `_K2.mesh_shift`, which
      `_K2_APPLY_Z_OFFSET` adds to the Z-offset; never if the Z-offset would end
-     up below 0 (the nozzle must not dig into the plate) or the shift exceeds 4x
+     up below `min_z_offset` (the nozzle must not dig into the plate; default
+     -0.05 still leaves a 0.2 mm first layer at 0.15 mm, and filaments like
+     eSUN PETG need slightly negative values, 2026-10-04) or the shift exceeds 4x
      the tolerance. Otherwise it calibrates with `PROFILE=` (replacing the
      cache). Each print that uses a cached profile counts in save_variables
      (`k2_mesh_uses`); after `mesh_max_uses` (20) `_K2_PLAN` plans `calibrate`
