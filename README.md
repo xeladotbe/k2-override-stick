@@ -357,6 +357,22 @@ folder: that is only a copy, and the next bootstrap overwrites it with the one
 from the stick. To try a value for a single print, use a
 [per-print override](#per-print-overrides) instead.
 
+### Other Klipper settings
+
+`00_user_config.cfg` is included after Creality's `printer.cfg`, so a Klipper
+section in it overrides single options of the stock one. For example, a
+tighter `Z_TILT_ADJUST` (it runs after every Klipper restart and in G29; stock
+accepts up to 0.1 mm difference between left and right):
+
+```
+[z_tilt]
+retry_tolerance: 0.05
+```
+
+Put it after the `gcode:` line of `[gcode_macro USER_CONFIG]`. Not below about
+0.04: the probe scatters by about ±0.02 mm, and after 10 failed retries
+`Z_TILT_ADJUST` stops with an error, and G29 or the print start with it.
+
 ## Per-print overrides
 
 Any setting can be overridden for a single print by adding a `K2_` parameter
@@ -401,6 +417,12 @@ values are fine (e.g. `Z=-0.005`); if the result would be below `min_z_offset`
 the line use the material's value. Find the value with a Z-offset test print
 of that filament.
 
+Only the first call of a print counts, and only before the first layer. The
+slicer repeats the filament start G-code at every filament change (CFS
+multi-color prints); a new Z-offset there would shift all following layers, so
+those calls are ignored (with a console note if the value differs). A
+multi-filament print uses the Z-offset of the filament it starts with.
+
 The value lives in the slicer profile, so keep your slicer profiles in sync on
 every computer you print from (e.g. by exporting and importing them); the same
 goes for the printer profile's `START_PRINT` line.
@@ -413,6 +435,8 @@ Type these in the Fluidd/Mainsail console:
 |---|---|
 | `SET_OVERRIDE_ACTIVE VALUE=0` | Switch the overrides off without pulling the stick (`VALUE=1` switches them on again). |
 | `APPLY_MATERIAL_Z_OFFSET MATERIAL=PETG BED_TYPE="High Temp Plate"` | Shows and applies the Z-offset for that combination (only outside a print). |
+| `K2_STATUS` | Shows whether the overrides are active, the cached meshes with how many prints used them, and the last 10 mesh checks. |
+| `K2_STATUS MATERIAL=PETG BED_TYPE="High Temp Plate" BED_TEMP=70` | The same, plus every setting as it resolves for that combination (outside a print). |
 | `K2_CLEAR_MESH_CACHE` | Deletes all cached meshes (never the `default` profile). |
 | `K2_CLEAR_MESH_CACHE FILTER=70c` | Deletes only the cached meshes whose name contains `70c`. |
 | `K2_FILAMENT_Z_OFFSET Z=0.045` | Sets this print's Z-offset, keeping a mesh-check shift (meant for the filament profile's start G-code, see [Per-filament Z-offset](#per-filament-z-offset)). |
