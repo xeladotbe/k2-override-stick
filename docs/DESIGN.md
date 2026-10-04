@@ -180,6 +180,9 @@ idle ─────────────── START_PRINT ─────�
      soak, so the bed is still settling, and their adaptive mesh costs about as
      much as the check. The check runs where the stock flow would calibrate
      (after homing and nozzle clean), so probe and cache share a reference.
+     Every check is appended to save_variables `k2_mesh_checks` (last 10:
+     file, profile, mean, max, shape, result) for `K2_STATUS`, because the
+     console buffer is gone within minutes on this firmware.
    - `calibrate`: no profile yet; calibrated with `PROFILE=<name>`.
 
    It logs one `Plan:` line and one `ERROR:` line per rejected param.
@@ -200,9 +203,15 @@ idle ─────────────── START_PRINT ─────�
    `_K2_FINALIZE`: re-loads our mesh profile if another one is active (after a
    calibration it is `default`, since Creality saves the result there too and
    leaves that one active; seen on hardware, a cached load stays active),
-   applies the Z-offset,
+   applies the Z-offset (never below `min_z_offset`, the config value is
+   clamped too),
    phase `printing`. Only `BED_TEMP=`/`EXTRUDER_TEMP=` numbers are forwarded
-   to the stock macros, never the original params.
+   to the stock macros, never the original params. The filament profile's
+   `K2_FILAMENT_Z_OFFSET` then replaces the Z-offset once: Creality Print
+   repeats the filament start G-code at every filament change, so only the
+   first call per print counts (`_K2.filament_z`, cleared by `_K2_BEGIN` and
+   `_K2_RESET`) and only while the G-code Z is at most 1 mm (before the first
+   layer; after the stock purge line it is 0).
 6. **`END_PRINT`** (stock renamed): `_K2_RESET` (stops the tick, restores
    `idle_timeout`, phase `idle`, empty plan),
    then the stock macro. Nothing else runs here on purpose: see "Firmware

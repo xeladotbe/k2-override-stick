@@ -95,3 +95,16 @@
 # ============================================================================
 
 gcode:
+
+# ============================================================================
+# Other Klipper sections
+# ============================================================================
+# This file is included after Creality's printer.cfg, so a section here
+# overrides single options of the stock one. Example: Z_TILT_ADJUST (runs after
+# every Klipper restart and in G29) accepts up to 0.1 mm left/right difference
+# by default; a tighter value re-aligns more precisely. Not below ~0.04: the
+# probe scatters about +-0.02, and after 10 failed retries Z_TILT_ADJUST
+# aborts with an error (and with it G29 or the print start).
+#
+# [z_tilt]
+# retry_tolerance: 0.05
