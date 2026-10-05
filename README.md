@@ -22,8 +22,8 @@ Everything is configured in one file on the stick. Pull the stick and the
 printer behaves exactly like stock again.
 
 > **Status: beta.** Developed and tested on a K2 Plus with firmware
-> **V1.1.6.4** and **V1.1.7.0**. Other firmware versions or K2 models may work
-> but are untested.
+> **V1.1.6.4** and **V1.1.7.0**. A user reported it working on a **K2 Pro**
+> (V1.1.6.4). Other firmware versions or the K2 may work but are untested.
 
 > **Use at your own risk.** This project changes the printer's Klipper
 > configuration and renames Creality's stock macros. It comes without any
@@ -72,7 +72,8 @@ printer but pass everything straight through to the stock macros.
 
 ## Requirements
 
-- Creality K2 Plus (tested with firmware V1.1.6.4 and V1.1.7.0)
+- Creality K2 Plus (tested with firmware V1.1.6.4 and V1.1.7.0); K2 Pro
+  reported working (V1.1.6.4)
 - Root access to the printer via SSH (enable it in the printer's settings menu;
   Creality's default root password is `creality_2024`)
 - A USB stick formatted as FAT32 or exFAT (it can hold your print files too)
@@ -535,9 +536,9 @@ like. A factory reset removes everything as well.
 
 ## Known limitations
 
-- Only tested on the K2 Plus with firmware V1.1.6.4 and V1.1.7.0. The K2 and K2
-  Pro use the same Klipper firmware family and might work, but are untested;
-  feedback is welcome. If the stock macros differ, the bootstrap stops with a warning in
+- Only tested on the K2 Plus with firmware V1.1.6.4 and V1.1.7.0. A user
+  reported it working on a K2 Pro with V1.1.6.4. The K2 uses the same Klipper
+  firmware family and might work, but is untested; feedback is welcome. If the stock macros differ, the bootstrap stops with a warning in
   the log and the printer stays stock.
 - Creality's calibration always overwrites the `default` mesh profile as well;
   that is firmware behavior.
