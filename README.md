@@ -72,7 +72,8 @@ stick instead. From the stick, `bootstrap.sh` sets the printer up:
 1. installs two tiny trigger scripts on the printer: one reacts when the stick
    is plugged in or removed, the other runs at every boot,
 2. copies the `.cfg` files into the printer's config (`printer_data/config/custom/`)
-   and includes them in `printer.cfg`,
+   and adds one line to `printer.cfg`: `[include custom/k2_overrides.cfg]`,
+   which includes the rest,
 3. renames the stock macros it extends (e.g. `START_PRINT` becomes
    `START_PRINT_STOCK`; a backup of the original `gcode_macro.cfg` is kept),
 4. restarts Klipper if anything changed and switches the overrides on.
@@ -206,11 +207,10 @@ feedback is welcome.
    from the latest release and unpack it on your computer.
 2. **Upload the files.** In Fluidd/Mainsail open the configuration files, create
    a folder `custom` and upload into it every `.cfg` file from the
-   `k2-overrides` folder (`00_defaults.cfg`, `00_state.cfg`,
-   `10_print_plan.cfg`, `20_bed_mesh.cfg`, `30_print_flow.cfg`,
-   `40_print_hooks.cfg`, `50_tune.cfg`). Also upload `00_user_config.cfg.example` and rename
-   it to `00_user_config.cfg`; it explains every setting. The `scripts` folder
-   isn't needed.
+   `k2-overrides` folder. The `scripts` folder isn't needed. To change
+   settings, also upload `00_user_config.cfg.example` and rename it to
+   `00_user_config.cfg`; it explains every setting. Without it, the defaults
+   apply.
 3. **Rename six stock macros.** Download `gcode_macro.cfg` once as a backup,
    then open it and change only these six section headers:
 
@@ -224,22 +224,15 @@ feedback is welcome.
    | `[gcode_macro PRINT_TEMP_SET]` | `[gcode_macro PRINT_TEMP_SET_STOCK]` |
 
    Don't rename anything else, in particular not `CANCEL_PRINT` or `RESUME`.
-4. **Include the files.** Open `printer.cfg` and add these lines, in this
-   order, right above the `#*# <---------------------- SAVE_CONFIG ---------------------->`
-   line (or at the end of the file if there is none):
+4. **Include the files.** Open `printer.cfg` and add this line right above the
+   `#*# <---------------------- SAVE_CONFIG ---------------------->` line (or at
+   the end of the file if there is none):
 
    ```
-   [include custom/00_defaults.cfg]
-   [include custom/00_state.cfg]
-   [include custom/00_user_config.cfg]
-   [include custom/10_print_plan.cfg]
-   [include custom/20_bed_mesh.cfg]
-   [include custom/30_print_flow.cfg]
-   [include custom/40_print_hooks.cfg]
-   [include custom/50_tune.cfg]
+   [include custom/k2_overrides.cfg]
    ```
 
-   The order matters: `00_user_config.cfg` must come after `00_defaults.cfg`.
+   `k2_overrides.cfg` includes all the other files in the right order.
 5. **Switch on.** Create the file `custom/.variables.cfg` with this content
    (without it, the printer behaves like stock):
 
@@ -260,17 +253,16 @@ Then set up the slicer as below.
 run `FIRMWARE_RESTART`.
 
 **New version:** upload the new `.cfg` files over the old ones (not your
-`00_user_config.cfg`), add includes for new files in the same order, and run
-`FIRMWARE_RESTART`. Check the release notes for renamed macros.
+`00_user_config.cfg`) and run `FIRMWARE_RESTART`. Check the release notes for renamed macros.
 
 **After every firmware update:** before the next print, open `gcode_macro.cfg`
 and check that the six `_STOCK` names from step 3 are still there, and
-`printer.cfg` for the includes from step 4. If the update restored Creality's
+`printer.cfg` for the include from step 4. If the update restored Creality's
 files, redo those steps. Otherwise the print stops with
 `Unknown command "START_PRINT_STOCK"`.
 
 **Uninstalling:** run `K2_CLEAR_MESH_CACHE` in the console, remove the
-includes from `printer.cfg`, rename the six sections back (or restore your
+include from `printer.cfg`, rename the six sections back (or restore your
 backup of `gcode_macro.cfg`), delete the `custom` folder's files from this
 project (and `custom/.variables.cfg`), then `FIRMWARE_RESTART`.
 
