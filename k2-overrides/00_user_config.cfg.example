@@ -100,6 +100,12 @@
 #   Part of that measured movement put onto this print's Z-offset (the
 #   middle is probed first and printed last). 0.5 = half, 0 = off.
 #
+# variable_soak_stable_mm_per_min   [0]
+#   Dynamic soak: > 0 probes the bed middle every minute and starts as soon
+#   as it rises at most this many mm/min (soak_minutes is then the maximum).
+#   Some beds look quiet at first and deform later; K2_TUNE checks yours.
+#   0 = always the full soak_minutes.
+#
 # variable_tune_profile             ['good']
 #   'good' or 'best': soak_minutes and the mesh_* tolerances come from the
 #   K2_TUNE result for the print's bed temperature (none: the values here,
