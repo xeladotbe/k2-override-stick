@@ -158,7 +158,7 @@ idle ─────────────── START_PRINT ─────�
      `_K2.mesh_check`. `_K2_MESH_CHECK_DONE` loads the profile if the mean is
      within the tolerance and no point is off by more than
      `mesh_check_point_factor` (default 1) times that. If the points are only
-     shifted (each within `mesh_check_shape_tolerance`, 0.015, of their mean)
+     shifted (each within `mesh_check_shape_tolerance`, 0.025, of their mean)
      it loads the profile too and stores the mean as `_K2.mesh_shift`, which
      `_K2_APPLY_Z_OFFSET` adds to the Z-offset; never if the Z-offset would end
      up below `min_z_offset` (the nozzle must not dig into the plate; default
@@ -184,6 +184,35 @@ idle ─────────────── START_PRINT ─────�
      file, profile, mean, max, shape, result) for `K2_STATUS`, because the
      console buffer is gone within minutes on this firmware.
    - `calibrate`: no profile yet; calibrated with `PROFILE=<name>`.
+
+   Every full calibration in our flow (`calibrate`, and the check's
+   re-measure) goes through `_K2_CALIBRATE`: calibrate, probe the grid middle
+   again, `_K2_MESH_VERIFY`. Stock `_HOME_Z` homes at the middle of
+   `mesh_min`/`mesh_max`, which is that grid point (odd counts; even counts
+   skip the check). Creality's calibration probes the middle FIRST and spirals
+   outwards (log 2026-10-07: 175/175 at 10:31:45, last corner at 10:36:05), so
+   the mesh's middle only shows movement between homing and the mesh start
+   (*before*, settled ~0: +0.004, -0.005, -0.006); the probe after the mesh
+   minus it is the movement while the mesh was measured (*during*). Both within
+   `mesh_stable_tolerance` (0.03): cached as usual. Otherwise the bed was still
+   moving (cold or half-warm start, or the soak skipped with resume): the print
+   uses the mesh, `k2_mesh_uses` gets -1 (`_K2_PLAN` then plans `calibrate`,
+   `K2_STATUS` shows it). In both cases `mesh_drift_correction` (0.5) times
+   *during* goes onto this print's Z-offset via `_K2.mesh_shift`: the middle
+   holds none of the drift, the outer points nearly all, so half is the
+   smallest worst case (only from 0.005 of drift: probe noise ~0.003, a Z
+   step 0.0025; capped at the tolerance, 0.03 if the check is off,
+   never below `min_z_offset`; *before* needs no correction, every point
+   holds it). Applied also to a settled mesh because the bed keeps rising
+   slowly (frame and chamber) and the middle is printed ~6 minutes after it
+   was probed: 2026-10-07, 21 min soak, +0.0095 during the mesh, first layer
+   better than with 5 min but the middle still slightly rough. Never a second full mesh (user decision 2026-10-07): waiting belongs in
+   the soak, and a bed still moving after the soak won't settle in a few
+   minutes. A per-point correction by probing time would be exact but needs
+   writing mesh points, which no G-code command does. Why: on 2026-10-06 a
+   PETG print after a 1 h pause measured a mesh reading +0.060 at the middle;
+   the first layer was too close and the cached mesh made the next check fail
+   (mean -0.059). Settled meshes before and after printed perfectly.
 
    It logs one `Plan:` line and one `ERROR:` line per rejected param.
 3. **`_K2_BEGIN`**: with a soak it sets the bed target and the nozzle to the

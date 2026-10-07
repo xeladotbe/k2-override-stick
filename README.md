@@ -308,8 +308,10 @@ A plate that isn't listed uses the material's `'default'`, otherwise the outer
 | `small_print_adaptive_mesh` | `1` | For small prints: `1` = probe only around the print (no cache); `0` = use the cached full-bed mesh (the soak is only skipped if that mesh already exists). |
 | `mesh_check_tolerance` | `0.025` | Before a cached mesh is used, up to 9 of its points over the print area (3x3) are probed. If they differ by more than this many mm on average, or one point by more than `mesh_check_point_factor` times that, the mesh is not used as it is (see the next two). `0` = load without checking. |
 | `mesh_check_point_factor` | `1` | How far a single probed point may be off, as a multiple of `mesh_check_tolerance`. `1` = no point beyond the tolerance; `1.5` or `2` = more lenient. |
-| `mesh_check_shape_tolerance` | `0.015` | If the probed points are all shifted by about the same amount (each within this many mm of their mean), the bed only moved: the cached mesh is used and the shift added to the Z-offset for this print. Never if the Z-offset would end up below `min_z_offset`, and not for shifts over 4x `mesh_check_tolerance`: then the bed is measured again and the cache replaced. `0` = always measure again. |
+| `mesh_check_shape_tolerance` | `0.025` | If the probed points are all shifted by about the same amount (each within this many mm of their mean), the bed only moved: the cached mesh is used and the shift added to the Z-offset for this print. Never if the Z-offset would end up below `min_z_offset`, and not for shifts over 4x `mesh_check_tolerance`: then the bed is measured again and the cache replaced. `0` = always measure again. |
 | `mesh_max_uses` | `20` | After a cached mesh was used in this many prints, it is measured again (the check only probes a few points). `0` = never. |
+| `mesh_stable_tolerance` | `0.03` | Checks a freshly measured mesh for bed movement: its middle (measured first, right after Z was homed there) must read about 0, and the middle probed again after the mesh (about 4.5 minutes later) must not differ by more than this many mm. Otherwise the bed was still rising or sinking (not soaked through, or the soak was skipped with resume): the print goes ahead with that mesh, but it isn't cached, so the next print measures again. No second mesh. `0` = no check. |
+| `mesh_drift_correction` | `0.5` | How much of the movement measured while the mesh was probed (middle before vs. after) goes onto this print's Z-offset. The middle is probed first and printed last, and the bed keeps rising a little until the first layer, so without it the middle ends up slightly too close. `0.5` = half, `0` = off. Only from 0.005 mm of movement (below that it's probe noise and less than one Z step), only for this print, at most `mesh_stable_tolerance`, never below `min_z_offset`. |
 
 After editing, copy the file to the stick and apply it (see
 [Updating](#updating-and-firmware-updates)).
@@ -319,8 +321,8 @@ After editing, copy the file to the stick and apply it (see
 For each combination of bed temperature and plate, the first print measures the
 bed and saves the mesh as a profile, e.g. `bed_mesh_70c_0c_textured_pei_plate`
 (bed 70 °C, chamber 0 °C). Later prints with the same combination load it
-instead of probing the whole bed. First they probe up to 5 of its points over the
-print area (about 15 seconds). If the bed has moved since, it gets measured again
+instead of probing the whole bed. First they probe up to 9 of its points over the
+print area (about 30 seconds). If the bed has moved since, it gets measured again
 and the cache is replaced. This happens, for example, right after a long print,
 when the whole machine is warm (seen: 0.04–0.05 mm lower than after a short
 warm-up). Small prints skip this check. Clear the cache after a nozzle change, a Z calibration or
