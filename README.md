@@ -46,6 +46,7 @@ printer behaves exactly like stock again.
 ## Contents
 
 - [How it works](#how-it-works)
+- [How a print runs](#how-a-print-runs)
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Manual installation (without stick or SSH)](#manual-installation-without-stick-or-ssh)
@@ -80,6 +81,47 @@ It runs automatically whenever the stick is plugged in or the printer boots;
 only the very first time (and after a factory reset) you start it by hand.
 When the stick is removed, the overrides are switched off. The files stay on the
 printer but pass everything straight through to the stock macros.
+
+## How a print runs
+
+```mermaid
+flowchart TD
+    start(["START_PRINT from the slicer"]) --> plan["<b>Plan</b><br/>material, plate, bed temperature;<br/>settings from the config, K2_TUNE and K2_* params"]
+    plan --> soakq{"Heat soak?"}
+
+    soakq -->|"no: the app just measured,<br/>small print, or soak_minutes 0"| stock
+    soakq -->|yes| heat["Bed heats up<br/>(the print shows as paused)"]
+    heat --> soak["Heat soak: soak_minutes,<br/>or until the bed has settled"]
+    soak -->|"time up, bed settled,<br/>or Resume pressed"| stock
+
+    stock["Stock start: home, clean the nozzle"] --> meshq{"Bed mesh?"}
+
+    meshq -->|"the app just measured"| appmesh["Use the app's mesh"]
+    meshq -->|"small print"| adaptive["Measure only around the print"]
+    meshq -->|"cached for this<br/>temperature and plate"| check["Probe up to 9 of its points"]
+    meshq -->|"none yet, used in 20 prints,<br/>or last measured on a moving bed"| full
+
+    check -->|matches| load["Load the cached mesh"]
+    check -->|"only shifted"| shifted["Load it, shift the Z-offset"]
+    check -->|"bed changed"| full["Measure the full mesh,<br/>then probe the middle again"]
+
+    full --> moving{"Bed moved<br/>while measuring?"}
+    moving -->|no| cache["Cache the mesh"]
+    moving -->|yes| once["Use it for this print only"]
+    cache --> drift["Part of the drift<br/>onto this print's Z-offset"]
+    once --> drift
+
+    appmesh --> z
+    adaptive --> z
+    load --> z
+    shifted --> z
+    drift --> z
+
+    z["Z-offset for material and plate<br/>(the filament profile may set its own)"] --> print(["Stock START_PRINT, the print runs"])
+```
+
+Every message along the way starts with `[K2_OVERRIDES]`, see
+[What you see during a print](#what-you-see-during-a-print).
 
 ## Requirements
 
