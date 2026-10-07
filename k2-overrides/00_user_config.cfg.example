@@ -81,7 +81,7 @@
 #   How far a single probed point may be off, as a multiple of
 #   mesh_check_tolerance (e.g. 1.5 or 2 = more lenient).
 #
-# variable_mesh_check_shape_tolerance [0.015]
+# variable_mesh_check_shape_tolerance [0.025]
 #   If the probed points are only shifted (each within this of their mean),
 #   the cached mesh is used and the shift added to the Z-offset, unless the
 #   Z-offset would go below min_z_offset (then the bed is measured again).
@@ -89,6 +89,16 @@
 #
 # variable_mesh_max_uses             [20]
 #   Measure a cached mesh again after this many prints used it. 0 = never.
+#
+# variable_mesh_stable_tolerance     [0.03]
+#   A fresh mesh must read about 0 in the bed's middle (where Z was just
+#   homed), and the middle probed again after the mesh may differ by at most
+#   this. Otherwise the bed was still moving: the print uses that mesh, but
+#   it isn't cached. 0 = no check.
+#
+# variable_mesh_drift_correction    [0.5]
+#   Part of that measured movement put onto this print's Z-offset (the
+#   middle is probed first and printed last). 0.5 = half, 0 = off.
 #
 # For a single print, K2_<SETTING>=<number> on the slicer's START_PRINT line
 # wins over this file, e.g. K2_Z_OFFSET_PETG=0.02 (README: "Per-print overrides").
