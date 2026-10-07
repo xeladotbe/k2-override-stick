@@ -227,6 +227,30 @@ idle ─────────────── START_PRINT ─────�
    during the wait runs `_K2_FINISH_WAIT` early (see hooks). Once the phase is
    past the wait, a tick that was still pending does nothing; if the print was
    resumed behind our back, it resets and stops.
+   **Dynamic soak** (`soak_stable_mm_per_min` > 0, `_K2.soak_dynamic`). On
+   2026-10-07 (`K2_TUNE`, cold start, 70 °C, 5 mm aluminium plate) the middle
+   rose ~0.003 mm/min for the first 5 minutes and ~0.01 mm/min 10–20 minutes
+   in, with a second quiet spell at 6-8 minutes. A short window (2 minutes
+   against the 2 before) would have ended a cold soak after 3 minutes, and
+   any minimum below ~9 minutes after 8. A first version therefore only
+   allowed it from a warm bed (within 5 °C at `START_PRINT`); dropped because
+   that rule also held back beds that really settle in minutes and misjudged a
+   bed preheated just before. Now the window is 3-minute means 5 minutes apart
+   (earliest end minute 7): on that curve 0.003 mm/min ran to minute 29 cold,
+   a warm bed ends at 7. `K2_TUNE` replays it on its cold-start curve from the
+   tier's rate down to 0.002 and suggests the largest rate that doesn't stop
+   before the bed settled (2026-10-07: good 0.0035, best 0.003), or `0` if
+   none. When dynamic: on reaching the
+   temperature the tick homes if Z isn't homed and waits for the nozzle at
+   the stock clear temperature (a hotend still heating or cooling shifts the
+   probe like a moving bed). Then every full minute of the soak
+   `_K2_SOAK_PROBE` probes the bed middle and `_K2_SOAK_EVAL` compares the
+   mean of the last 3 minutes with the same 3 minutes 5 earlier; at most
+   `soak_stable_mm_per_min` per minute sets `soak_left` 0 (the tick has
+   already decremented it, so the next tick finishes). Earliest end: minute
+   7. `K2_TUNE` also records the bed heater power per minute, for a later
+   criterion that could tell a soaked plate from a cold start (falling power
+   while the plate still absorbs heat).
 5. **`_K2_CONTINUE`**: phase `starting`, Creality's
    `BED_MESH_CALIBRATE_START_PRINT_STOCK` (homing, nozzle clean, mesh; its
    `BED_MESH_CALIBRATE` call follows the plan), `START_PRINT_STOCK`, then
@@ -294,7 +318,8 @@ shown as *best*.
   max(minimum, 2x / 1.5x the worst check shape); the check tolerance is raised
   to at least the shape tolerance (a larger shape tolerance would bypass the
   single-point limit).
-- `soak_stable_mm_per_min` (for the planned dynamic soak): the tier's *rate*.
+- `soak_stable_mm_per_min`: the largest rate that doesn't end the dynamic soak
+  too early on this curve, or `0` (see "Dynamic soak").
 
 ## Hooks into the stock macros
 
