@@ -137,11 +137,12 @@ Every message along the way starts with `[K2_OVERRIDES]`, see
 
 ### 1. Prepare the USB stick
 
-1. Download this repository as a ZIP (**Code → Download ZIP** at the top of the
-   GitHub page) and unpack it on your computer.
-2. Copy the `k2-overrides` folder from inside the unpacked folder to the
-   **root** of the stick. Only that folder is needed, and its name must stay
-   `k2-overrides`: that is how the printer recognizes the stick.
+1. Download
+   [`k2-overrides.zip`](https://github.com/xeladotbe/k2-override-stick/releases/latest/download/k2-overrides.zip)
+   from the latest [release](https://github.com/xeladotbe/k2-override-stick/releases)
+   and unpack it on your computer.
+2. Copy the unpacked `k2-overrides` folder to the **root** of the stick. Its
+   name must stay `k2-overrides`: that is how the printer recognizes the stick.
 3. Optionally create your own settings (see [Configuration](#configuration)).
    You can also do that later; without them the defaults apply.
 
@@ -164,7 +165,8 @@ bootstrap if you didn't create it yourself):
     ├── 10_print_plan.cfg
     ├── 20_bed_mesh.cfg
     ├── 30_print_flow.cfg
-    └── 40_print_hooks.cfg
+    ├── 40_print_hooks.cfg
+    └── 50_tune.cfg
 ```
 
 ### 2. Plug it in and run the bootstrap once
@@ -199,13 +201,14 @@ start a print until you redo step 3 (see below). These steps do exactly what the
 bootstrap does on the printer, but haven't been walked through by hand yet;
 feedback is welcome.
 
-1. **Download** this repository as a ZIP (**Code → Download ZIP**) and unpack
-   it on your computer.
+1. **Download**
+   [`k2-overrides.zip`](https://github.com/xeladotbe/k2-override-stick/releases/latest/download/k2-overrides.zip)
+   from the latest release and unpack it on your computer.
 2. **Upload the files.** In Fluidd/Mainsail open the configuration files, create
    a folder `custom` and upload into it every `.cfg` file from the
    `k2-overrides` folder (`00_defaults.cfg`, `00_state.cfg`,
    `10_print_plan.cfg`, `20_bed_mesh.cfg`, `30_print_flow.cfg`,
-   `40_print_hooks.cfg`). Also upload `00_user_config.cfg.example` and rename
+   `40_print_hooks.cfg`, `50_tune.cfg`). Also upload `00_user_config.cfg.example` and rename
    it to `00_user_config.cfg`; it explains every setting. The `scripts` folder
    isn't needed.
 3. **Rename six stock macros.** Download `gcode_macro.cfg` once as a backup,
@@ -233,6 +236,7 @@ feedback is welcome.
    [include custom/20_bed_mesh.cfg]
    [include custom/30_print_flow.cfg]
    [include custom/40_print_hooks.cfg]
+   [include custom/50_tune.cfg]
    ```
 
    The order matters: `00_user_config.cfg` must come after `00_defaults.cfg`.
