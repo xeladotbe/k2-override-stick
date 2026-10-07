@@ -63,7 +63,7 @@
 #   Heat soak once the bed has reached its temperature. 0 = no soak.
 #   The print is paused meanwhile; cancel or resume works any time.
 #
-# variable_small_print_coverage_pct  [0, PLA 15, PETG 10]
+# variable_small_print_coverage_pct  [0, PLA 15]
 #   A print is "small" if its objects cover less than this % of the bed.
 #   0 = never small. Small prints skip the soak.
 #
