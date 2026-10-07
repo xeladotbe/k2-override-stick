@@ -96,12 +96,13 @@ or `teardown.sh` (no stick).
    what bootstrap installed; a file in it that is gone from the stick loses its
    copy and its include. Files someone else put into `custom/` are never
    touched.
-8. One literal `[include custom/<name>.cfg]` per file in `printer.cfg`, in
-   file name order, as one block **before** the `#*# <---- SAVE_CONFIG ---->`
-   trailer (see facts below for both). If any is missing or out of order, the
-   block is rewritten: `00_user_config.cfg` must be read after
-   `00_defaults.cfg` (see Settings resolution), and a file added later would
-   otherwise land at the end.
+8. One line `[include custom/k2_overrides.cfg]` in `printer.cfg`, **before**
+   the `#*# <---- SAVE_CONFIG ---->` trailer (see facts below). That file
+   includes the others in order: `00_user_config.cfg` must be read after
+   `00_defaults.cfg` (see Settings resolution). Includes of our other files
+   (one per file up to v0.2.0) are removed. The simulator loads the files
+   through `k2_overrides.cfg` and checks that it lists every `.cfg` once, in
+   file name order.
 9. Caches `teardown.sh` + `common.sh` on the printer (the stick is gone when
    they are needed).
 10. `FIRMWARE_RESTART` via Moonraker if anything changed, waits for `ready`
@@ -433,7 +434,15 @@ with soak + 120 s and the heaters switched off mid-soak.
 - A wildcard `[include custom/*.cfg]` loads, but every `SAVE_CONFIG`/
   `CXSAVE_CONFIG` afterwards fails (`Unable to parse existing config`): the
   re-read (`configfile.py _strip_include_duplicates`) doesn't expand the glob.
-  Hence one literal include per file.
+  Hence literal includes only.
+- Nested literal includes work (tested 2026-10-07: an include
+  inside an included file loads, `CXSAVE_CONFIG` and `SAVE_CONFIG` succeed).
+  The path in a nested include is relative to the including file. On
+  SAVE_CONFIG Creality only re-reads the files `printer.cfg` includes
+  directly, so a wildcard one level down is safe: `k2_overrides.cfg` uses
+  `[include 00_user_config*.cfg]`, which Klipper accepts when nothing matches
+  (a literal include of a missing file is an error), so the user config is
+  optional for a manual install.
 - Nothing may follow the `#*# <---- SAVE_CONFIG ---->` trailer; a blind append
   broke it (`Option 'z_offset' in section 'prtouch_v3' must be specified`).
 

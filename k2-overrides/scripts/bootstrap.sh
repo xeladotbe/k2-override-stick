@@ -215,17 +215,16 @@ done
 rmdir "$CUSTOM_DIR/hooks" 2>/dev/null || true
 stick_cfgs > "$MANIFEST"
 
-# One literal include per file (a wildcard [include custom/*.cfg] breaks every
-# SAVE_CONFIG), in file name order: 00_user_config.cfg must be read after
-# 00_defaults.cfg to override it. If anything is missing or out of order, the
-# block is rewritten in front of the SAVE_CONFIG trailer (nothing may follow it).
+# printer.cfg includes only k2_overrides.cfg, which includes the rest (a
+# wildcard [include custom/*.cfg] would break every SAVE_CONFIG). Includes of
+# our other files (one per file in older versions) are dropped. If anything differs,
+# the block is rewritten in front of the SAVE_CONFIG trailer (nothing may follow it).
 OURS_RE=""
-WANTED=""
 for name in $(stick_cfgs); do
     OURS_RE="${OURS_RE:+$OURS_RE|}$(echo "$name" | sed 's/\./\\./g')"
-    WANTED="${WANTED}[include custom/$name]
-"
 done
+WANTED="[include custom/k2_overrides.cfg]
+"
 OURS_RE="^[[:space:]]*\\[include custom/($OURS_RE)\\][[:space:]]*\$"
 HAVE=$(grep -E "$OURS_RE" "$PRINTER_CFG" 2>/dev/null | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' || true)
 
@@ -239,7 +238,7 @@ if [ "$HAVE" != "$(printf '%s' "$WANTED")" ]; then
     ' "$PRINTER_CFG" > "$PRINTER_CFG.tmp"
     mv "$PRINTER_CFG.tmp" "$PRINTER_CFG"
     CHANGED=1
-    logger -t k2-overrides "Rewrote the includes for custom/*.cfg"
+    logger -t k2-overrides "Rewrote the include of custom/k2_overrides.cfg"
 fi
 
 # Cache teardown.sh (and its common.sh dependency) locally -- the stick is
