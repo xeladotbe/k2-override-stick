@@ -100,6 +100,12 @@
 #   Part of that measured movement put onto this print's Z-offset (the
 #   middle is probed first and printed last). 0.5 = half, 0 = off.
 #
+# variable_tune_profile             ['good']
+#   'good' or 'best': soak_minutes and the mesh_* tolerances come from the
+#   K2_TUNE result for the print's bed temperature (none: the values here,
+#   K2_STATUS lists the temperatures to run K2_TUNE for). One value for all
+#   prints, not per material.
+#
 # For a single print, K2_<SETTING>=<number> on the slicer's START_PRINT line
 # wins over this file, e.g. K2_Z_OFFSET_PETG=0.02 (README: "Per-print overrides").
 # ============================================================================

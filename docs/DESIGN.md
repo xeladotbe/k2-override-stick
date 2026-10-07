@@ -31,7 +31,8 @@ k2-override-stick/
 │   ├── 10_print_plan.cfg         # _K2_PLAN
 │   ├── 20_bed_mesh.cfg           # BED_MESH_CALIBRATE / BED_MESH_CALIBRATE_START_PRINT hooks, K2_CLEAR_MESH_CACHE
 │   ├── 30_print_flow.cfg         # START_PRINT, soak, start sequence, Z-offset
-│   └── 40_print_hooks.cfg        # END_PRINT, PRINT_PREPARE_CLEAR, RESUME_EXTERNAL_PROCESS, PRINT_TEMP_SET
+│   ├── 40_print_hooks.cfg        # END_PRINT, PRINT_PREPARE_CLEAR, RESUME_EXTERNAL_PROCESS, PRINT_TEMP_SET
+│   └── 50_tune.cfg               # K2_TUNE: measures the bed, suggests soak and tolerances
 ├── LICENSE
 └── docs/DESIGN.md
 ```
@@ -246,6 +247,55 @@ idle ─────────────── START_PRINT ─────�
    then the stock macro. Nothing else runs here on purpose: see "Firmware
    behavior" (MCU shutdowns at the end of a print).
 
+## K2_TUNE
+
+`50_tune.cfg`, state in `_K2_TUNE`. Refuses while printing, while `_K2` isn't
+idle, or with the bed above 35 °C (`FORCE=1`). Nozzle off throughout: on
+2026-10-06 the nozzle temperature (49 vs 140 °C) shifted all points by
+0.036 but didn't change the dome, and a cold nozzle can't ooze onto the probe.
+
+1. `G28`, then 10x `PROBE` at the bed middle (std = probe noise), bed on.
+2. `_K2_TUNE_TICK` (`delayed_gcode`, so `K2_TUNE_STOP` and a starting print
+   get in between): every 5 s until the bed is within 1 °C, then every minute
+   `PROBE` at the middle, every 5th minute also the 4 mesh corners, no
+   re-homing. `_K2_TUNE_EVAL`: settled when the dome (middle minus corner
+   mean) changed at most 0.01 over each of the last two corner rounds and the
+   whole bed rises at most 0.0025 mm/min (3-minute means of the middle, 5
+   minutes apart); or `MAX_MINUTES`. A slow rise of the whole bed (frame and
+   chamber warming, ~0.002 mm/min on 2026-10-07) is harmless for a first
+   layer, the shape is what the mesh must match. The first run judged the
+   middle's absolute height instead and needed 41 min for a shape that was
+   final after ~25.
+3. `_K2_TUNE_FINAL` (blocking, ~15 min): `G28 Z`, mesh as profile `k2_tune`
+   (its middle should read ~0), 3 rounds of the whole-bed check points
+   (first/middle/last grid column and row) against it, 5x `G28 Z` + `PROBE` at
+   the middle.
+4. `_K2_TUNE_END`: bed off, `k2_tune` removed (`CXSAVE_CONFIG`), then
+   `_K2_TUNE_RESULT` saves save_variables `k2_tune[<temp>]` (curve, corners,
+   homes, suggestions; `k2_tune_runs` counts runs, Jinja has no date) and
+   `_K2_TUNE_REPORT` prints it (`K2_STATUS` too).
+
+Suggestions come in two tiers, rounded up to 0.005. The soak ends when the
+dome stays within *band* of its final value and the whole bed rises at most
+*rate* (3-minute means, 5 minutes apart): *good* 0.02 / 0.004 mm/min with
+looser tolerances (cache used more often), *best* 0.01 / 0.003 with
+tolerances close to what was measured. Older saved results without tiers are
+shown as *best*.
+- `mesh_stable_tolerance`: max(0.03 / 0.02, 3x / 2x (worst |middle| of the
+  homing repeats and the mesh middle + noise)).
+- Check points: a point off by about the same amount in all 3 rounds (more
+  than max(0.015, 4x noise), spread between rounds smaller than the offset) is
+  systematic: reported, left out of the tolerances. 2026-10-07: X5/Y5 read
+  -0.021 in every round against the mesh (mesh probing there -0.165, `PROBE`
+  ~-0.19); a whole-bed check over that corner re-measures because of it.
+  Possibly the plate gives differently in that corner; not solved.
+- `mesh_check_tolerance`: max(0.02 / 0.015, 2x / 1.5x the worst check mean +
+  2x noise, 1.5x / 1.2x the worst single point); `mesh_check_shape_tolerance`:
+  max(minimum, 2x / 1.5x the worst check shape); the check tolerance is raised
+  to at least the shape tolerance (a larger shape tolerance would bypass the
+  single-point limit).
+- `soak_stable_mm_per_min` (for the planned dynamic soak): the tier's *rate*.
+
 ## Hooks into the stock macros
 
 | Hook | How | Why there |
@@ -276,6 +326,18 @@ Known gap: a material's per-plate dict without its own `'default'` falls back
 to the top-level `'default'` as a whole; if that is a dict too, the value
 becomes `0` (Jinja's `|float` on a dict). The README asks to give a per-plate
 top-level `'default'` its own `'default'`.
+
+Then, if `tune_profile` (one string for all prints: off | good | best; the
+user chose a single switch over per-material values; `K2_TUNE_PROFILE=` on the
+`START_PRINT` line overrides it, the only `K2_*` param that takes a word) is on and save_variables `k2_tune` has a result for the print's mesh
+temperature (`max(BED_TEMP, default_bed_temp)`, exact match: the bed behaves
+too differently between 50 and 70 °C to borrow), that tier's values replace
+`soak_minutes`, `mesh_stable_*` and `mesh_check_tolerance`/`_shape_tolerance`
+(source `K2_TUNE <tier> <temp>C`). Results saved before the tiers existed
+count as *best*. A missing result or an unknown value gets a console line and
+the config values; a missing temperature is also added to save_variables
+`k2_tune_missing` (`K2_STATUS` lists it, `K2_TUNE` for that temperature removes
+it).
 
 Then the `K2_*` params from the `START_PRINT` line win, most specific last:
 `K2_<NAME>` < `K2_<NAME>_<M>` < `K2_<NAME>_<M>_<B>` (`<M>`/`<B>` upper case,

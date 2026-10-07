@@ -12,6 +12,8 @@ they can be set up again after a firmware update or factory reset.
   reused afterwards, instead of probing before every print.
 - **Small prints**: skip the soak and optionally probe only the area around the
   print.
+- **Tuned for your bed**: `K2_TUNE` measures how your bed behaves when it heats
+  up and sets the soak and the mesh checks from that, automatically.
 - **Firmware updates**: everything lives on the stick, the printer only keeps
   two small trigger scripts. The update from V1.1.6.4 to V1.1.7.0 kept those
   scripts, so re-plugging the stick was enough to redo the changes the update
@@ -29,6 +31,15 @@ printer behaves exactly like stock again.
 > configuration and renames Creality's stock macros. It comes without any
 > warranty (see [LICENSE](LICENSE)); you are responsible for your printer and
 > your prints.
+
+**Quick start:**
+1. Copy the `k2-overrides` folder to a USB stick and plug it in (details under
+   [Installation](#installation)). It works right away with cautious defaults.
+2. For the best results, run `K2_TUNE BED_TEMP=<temp>` once per bed temperature
+   you print at (e.g. 50 for PLA, 70 for PETG), each time with a cold printer
+   (about an hour). Prints at that temperature then use the measured values
+   on their own (`tune_profile`, default `'good'`; `'best'` for the longest soak and strictest checks).
+3. Set your Z-offset per material and plate ([Configuration](#configuration)).
 
 ---
 
@@ -312,6 +323,7 @@ A plate that isn't listed uses the material's `'default'`, otherwise the outer
 | `mesh_max_uses` | `20` | After a cached mesh was used in this many prints, it is measured again (the check only probes a few points). `0` = never. |
 | `mesh_stable_tolerance` | `0.03` | Checks a freshly measured mesh for bed movement: its middle (measured first, right after Z was homed there) must read about 0, and the middle probed again after the mesh (about 4.5 minutes later) must not differ by more than this many mm. Otherwise the bed was still rising or sinking (not soaked through, or the soak was skipped with resume): the print goes ahead with that mesh, but it isn't cached, so the next print measures again. No second mesh. `0` = no check. |
 | `mesh_drift_correction` | `0.5` | How much of the movement measured while the mesh was probed (middle before vs. after) goes onto this print's Z-offset. The middle is probed first and printed last, and the bed keeps rising a little until the first layer, so without it the middle ends up slightly too close. `0.5` = half, `0` = off. Only from 0.005 mm of movement (below that it's probe noise and less than one Z step), only for this print, at most `mesh_stable_tolerance`, never below `min_z_offset`. |
+| `tune_profile` | `'good'` | `'off'`, `'good'` or `'best'`: take `soak_minutes` and the `mesh_*` tolerances from the [`K2_TUNE`](#tuning-the-settings-for-your-printer) result for the print's bed temperature. One value for all prints (not per material). No result for that temperature: the values above, and the `Plan:` line and `K2_STATUS` tell you to run `K2_TUNE` for it. `K2_TUNE_PROFILE=` on the `START_PRINT` line picks it per print, and other `K2_*` there still win. |
 
 After editing, copy the file to the stick and apply it (see
 [Updating](#updating-and-firmware-updates)).
@@ -331,6 +343,32 @@ when a plate looks different: see `K2_CLEAR_MESH_CACHE` under
 the display) always measures fresh and is not cached, and doesn't replace the
 cache for the next print. When the app measures while preparing a print ("Print
 Calibration"), that print uses the app's fresh mesh instead, without a soak.
+
+### Tuning the settings for your printer
+
+The defaults are cautious starting values. Beds differ (plate, mounting, a
+warped "taco" bed), so the right soak time and check tolerances do too.
+`K2_TUNE BED_TEMP=<temp>` measures them on your printer:
+
+1. Start it with a **cold** printer (bed at room temperature), plate on, nozzle
+   clean. Nothing may be printing. It moves on its own for about an hour:
+   keep the door closed and your hands out.
+2. It homes, probes the bed middle 10 times (probe noise), heats the bed and
+   then probes the middle every minute (the corners every 5 minutes) until the
+   bed stops moving (at most `MAX_MINUTES=`, default 45).
+3. Then it measures a full mesh, repeats the cached-mesh check against it
+   three times and homes Z five times to see how exactly the middle reads 0.
+4. At the end the bed turns off and the suggested values are printed and kept:
+   `K2_STATUS` shows them again later, per bed temperature. There are two
+   sets: **good** (shorter soak, the cache is used more often) and **best**
+   (the bed has fully settled, strictest checks, more re-measuring).
+
+You don't have to copy anything: set `tune_profile` to `'good'` or `'best'` in
+`00_user_config.cfg` and every print at a tuned bed temperature uses those
+values; the `Plan:` line says so. Run `K2_TUNE` once for each bed temperature
+you print at. Prints at other temperatures keep the normal settings, and
+`K2_STATUS` lists the temperatures still missing a `K2_TUNE` run. You can still copy single values into the config instead. The nozzle stays
+off throughout. `K2_TUNE_STOP` cancels it, except during the final mesh.
 
 ### Changing settings later
 
@@ -399,6 +437,13 @@ The most specific one wins; all of them win over `00_user_config.cfg`. Values
 must be plain numbers. Wrong names or values are reported in the console and
 ignored.
 
+One exception takes a word: `K2_TUNE_PROFILE=off|good|best` picks the
+`tune_profile` for this print (one value, no material or plate variants). Handy
+as two printer profiles in the slicer, e.g. a quick one with
+`K2_TUNE_PROFILE=off` (your normal soak) and one for prints where the first
+layer matters with `K2_TUNE_PROFILE=best`. A `K2_SOAK_MINUTES=…` on the same
+line still wins over the tuned soak.
+
 ## Per-filament Z-offset
 
 The slicer only passes the material type (`PETG`), so all PETGs share one
@@ -442,6 +487,8 @@ Type these in the Fluidd/Mainsail console:
 | `K2_STATUS MATERIAL=PETG BED_TYPE="High Temp Plate" BED_TEMP=70` | The same, plus every setting as it resolves for that combination (outside a print). |
 | `K2_CLEAR_MESH_CACHE` | Deletes all cached meshes (never the `default` profile). |
 | `K2_CLEAR_MESH_CACHE FILTER=70c` | Deletes only the cached meshes whose name contains `70c`. |
+| `K2_TUNE BED_TEMP=70` | Measures how *your* bed behaves at that temperature and suggests settings for it (see [Tuning the settings for your printer](#tuning-the-settings-for-your-printer)). |
+| `K2_TUNE_STOP` | Cancels a running `K2_TUNE` (not during its final mesh). |
 | `K2_FILAMENT_Z_OFFSET Z=0.045` | Sets this print's Z-offset, keeping a mesh-check shift (meant for the filament profile's start G-code, see [Per-filament Z-offset](#per-filament-z-offset)). |
 
 ## What you see during a print
