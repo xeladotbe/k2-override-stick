@@ -358,8 +358,13 @@ user chose a single switch over per-material values; `K2_TUNE_PROFILE=` on the
 `START_PRINT` line overrides it, the only `K2_*` param that takes a word) is on and save_variables `k2_tune` has a result for the print's mesh
 temperature (`max(BED_TEMP, default_bed_temp)`, exact match: the bed behaves
 too differently between 50 and 70 °C to borrow), that tier's values replace
-`soak_minutes`, `mesh_stable_*` and `mesh_check_tolerance`/`_shape_tolerance`
-(source `K2_TUNE <tier> <temp>C`). Results saved before the tiers existed
+`soak_minutes` (see below), `mesh_stable_*`, `soak_stable_mm_per_min` and `mesh_check_tolerance`/`_shape_tolerance`
+(source `K2_TUNE <tier> <temp>C`). Exception (user decision 2026-10-11, after
+`K2_TUNE` 50 °C suggested 15 min where 5 gave good PLA first layers):
+`soak_minutes` from the config is a cap, the tuned soak only applies if it is
+shorter; otherwise the source reads `config, K2_TUNE <tier> <temp>C suggests
+<n>` (`Plan:` line, `K2_STATUS`). A `K2_SOAK_MINUTES=` param still sets it
+outright. Results saved before the tiers existed
 count as *best*. A missing result or an unknown value gets a console line and
 the config values; a missing temperature is also added to save_variables
 `k2_tune_missing` (`K2_STATUS` lists it, `K2_TUNE` for that temperature removes

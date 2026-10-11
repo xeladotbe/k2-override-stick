@@ -37,8 +37,9 @@ printer behaves exactly like stock again.
    [Installation](#installation)). It works right away with cautious defaults.
 2. For the best results, run `K2_TUNE BED_TEMP=<temp>` once per bed temperature
    you print at (e.g. 50 for PLA, 70 for PETG), each time with a cold printer
-   (about an hour). Prints at that temperature then use the measured values
-   on their own (`tune_profile`, default `'good'`; `'best'` for the longest soak and strictest checks).
+   (about an hour). Prints at that temperature then use the measured check
+   tolerances on their own (`tune_profile`, default `'good'`; `'best'` for the
+   strictest checks). The soak stays your `soak_minutes`; `K2_TUNE` only shortens it.
 3. Set your Z-offset per material and plate ([Configuration](#configuration)).
 
 ---
@@ -352,7 +353,7 @@ A plate that isn't listed uses the material's `'default'`, otherwise the outer
 |---|---|---|
 | `z_offset` | `0` | Z-offset in mm, applied at the end of the start sequence. Larger = nozzle farther from the bed. |
 | `min_z_offset` | `-0.05` | Lowest Z-offset ever applied: `K2_FILAMENT_Z_OFFSET` clamps to it, and the mesh check measures again instead of shifting the Z-offset below it. |
-| `soak_minutes` | `5` (ABS `10`) | Minutes to wait once the bed has reached its temperature. `0` = no soak. With `soak_stable_mm_per_min` set, this is the maximum. |
+| `soak_minutes` | `5` (ABS `10`) | Minutes to wait once the bed has reached its temperature. `0` = no soak. Always the maximum: `tune_profile` and `soak_stable_mm_per_min` can only shorten it. |
 | `small_print_coverage_pct` | `0` (PLA `15`) | A print is "small" if its objects cover less than this percentage of the bed. `0` = never small. Small prints skip the soak. |
 | `small_print_adaptive_mesh` | `1` | For small prints: `1` = probe only around the print (no cache); `0` = use the cached full-bed mesh (the soak is only skipped if that mesh already exists). |
 | `mesh_check_tolerance` | `0.025` | Before a cached mesh is used, up to 9 of its points over the print area (3x3) are probed. If they differ by more than this many mm on average, or one point by more than `mesh_check_point_factor` times that, the mesh is not used as it is (see the next two). `0` = load without checking. |
@@ -362,7 +363,7 @@ A plate that isn't listed uses the material's `'default'`, otherwise the outer
 | `mesh_stable_tolerance` | `0.03` | Checks a freshly measured mesh for bed movement: its middle (measured first, right after Z was homed there) must read about 0, and the middle probed again after the mesh (about 4.5 minutes later) must not differ by more than this many mm. Otherwise the bed was still rising or sinking (not soaked through, or the soak was skipped with resume): the print goes ahead with that mesh, but it isn't cached, so the next print measures again. No second mesh. `0` = no check. |
 | `mesh_drift_correction` | `0.5` | How much of the movement measured while the mesh was probed (middle before vs. after) goes onto this print's Z-offset. The middle is probed first and printed last, and the bed keeps rising a little until the first layer, so without it the middle ends up slightly too close. `0.5` = half, `0` = off. Only from 0.005 mm of movement (below that it's probe noise and less than one Z step), only for this print, at most `mesh_stable_tolerance`, never below `min_z_offset`. |
 | `soak_stable_mm_per_min` | `0` | Dynamic soak: `> 0` probes the middle of the bed every minute of the soak and starts the print as soon as it rises at most this many mm per minute (after 7 minutes at the earliest, after `soak_minutes` at the latest), so a bed that settles quickly doesn't wait for nothing. Some beds look quiet for the first minutes and deform later (seen on a K2 Plus with a 5 mm aluminium plate at 70 °C); there it would stop too early. `K2_TUNE` checks your bed for that and suggests `0` if it happens, `tune_profile` uses the suggestion. `0` = always the full `soak_minutes`. |
-| `tune_profile` | `'good'` | `'off'`, `'good'` or `'best'`: take `soak_minutes` and the `mesh_*` tolerances from the [`K2_TUNE`](#tuning-the-settings-for-your-printer) result for the print's bed temperature. One value for all prints (not per material). No result for that temperature: the values above, and the `Plan:` line and `K2_STATUS` tell you to run `K2_TUNE` for it. `K2_TUNE_PROFILE=` on the `START_PRINT` line picks it per print, and other `K2_*` there still win. |
+| `tune_profile` | `'good'` | `'off'`, `'good'` or `'best'`: take the `mesh_*` tolerances and `soak_stable_mm_per_min` from the [`K2_TUNE`](#tuning-the-settings-for-your-printer) result for the print's bed temperature. Its soak is only used if it is shorter than `soak_minutes`; a longer one is shown as a suggestion in the `Plan:` line and in `K2_STATUS` (e.g. `soak 5.0 min (config, K2_TUNE good 50C suggests 15)`), raise `soak_minutes` yourself if you want it. One value for all prints (not per material). No result for that temperature: the values above, and the `Plan:` line and `K2_STATUS` tell you to run `K2_TUNE` for it. `K2_TUNE_PROFILE=` on the `START_PRINT` line picks it per print, and other `K2_*` there still win. |
 
 After editing, copy the file to the stick and apply it (see
 [Updating](#updating-and-firmware-updates)).
@@ -404,7 +405,9 @@ warped "taco" bed), so the right soak time and check tolerances do too.
 
 You don't have to copy anything: set `tune_profile` to `'good'` or `'best'` in
 `00_user_config.cfg` and every print at a tuned bed temperature uses those
-values; the `Plan:` line says so. Run `K2_TUNE` once for each bed temperature
+values; the `Plan:` line says so. The soak is the exception: `soak_minutes`
+stays the maximum, so a long suggested soak never surprises you. If you want
+it, raise `soak_minutes` (per material or plate). Run `K2_TUNE` once for each bed temperature
 you print at. Prints at other temperatures keep the normal settings, and
 `K2_STATUS` lists the temperatures still missing a `K2_TUNE` run. You can still copy single values into the config instead. The nozzle stays
 off throughout. `K2_TUNE_STOP` cancels it, except during the final mesh.
@@ -481,7 +484,7 @@ One exception takes a word: `K2_TUNE_PROFILE=off|good|best` picks the
 as two printer profiles in the slicer, e.g. a quick one with
 `K2_TUNE_PROFILE=off` (your normal soak) and one for prints where the first
 layer matters with `K2_TUNE_PROFILE=best`. A `K2_SOAK_MINUTES=…` on the same
-line still wins over the tuned soak.
+line sets the soak as given, also above the tuned one.
 
 ## Per-filament Z-offset
 
