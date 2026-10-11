@@ -250,7 +250,9 @@ idle ─────────────── START_PRINT ─────�
    mean of the last 3 minutes with the same 3 minutes 5 earlier; at most
    `soak_stable_mm_per_min` per minute sets `soak_left` 0 (the tick has
    already decremented it, so the next tick finishes). Earliest end: minute
-   7. `K2_TUNE` also records the bed heater power per minute, for a later
+   7. So a soak of 7 minutes or less runs fixed, without probing (after the
+   soak cap of 2026-10-11 a 5-minute soak with a tuned rate probed every
+   minute for nothing). `K2_TUNE` also records the bed heater power per minute, for a later
    criterion that could tell a soaked plate from a cold start (falling power
    while the plate still absorbs heat).
 5. **`_K2_CONTINUE`**: phase `starting`, Creality's
