@@ -617,3 +617,17 @@ macro halts Klipper at load.
 
 Code style: at most four comment lines per macro, blank lines between logical
 blocks inside `gcode:`, reasoning goes into this file.
+
+Commits follow Conventional Commits (`feat(scope): ...`, `fix`, `docs`, ...):
+the release notes are built from them.
+
+Releasing: push a tag, e.g. `git tag -a v0.4.0 -m "<upgrade notes>"` and
+`git push origin v0.4.0`. `.github/workflows/release.yml` then publishes the
+release with notes from `.github/scripts/release_notes.py` (the annotated
+tag's message first, for what the commits can't tell, such as a step a manual
+install must not miss; then the commits since the previous tag grouped by
+type, `chore`/`ci`/`test`/`build`/`style` left out; then the usual upgrade
+steps) and attaches `k2-overrides.zip` (without `00_user_config.cfg`).
+Preview the notes locally with `python .github/scripts/release_notes.py
+v0.4.0` before the tag exists. The workflow builds the ZIP itself: a release
+created by its token wouldn't trigger a second workflow.

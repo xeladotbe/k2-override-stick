@@ -1,25 +1,34 @@
-# Attaches k2-overrides.zip (only the folder that goes on the stick) to every published release.
-name: Release ZIP
+# On a pushed tag vX.Y.Z: publishes the release with notes generated from the commits since the previous tag
+# (.github/scripts/release_notes.py, an annotated tag's message goes first) and attaches k2-overrides.zip
+# (only the folder that goes on the stick).
+name: Release
 
 on:
-  release:
-    types: [published]
+  push:
+    tags: ['v*']
 
 permissions:
   contents: write
 
 jobs:
-  zip:
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.release.tag_name }}
+          fetch-depth: 0
+
+      # checkout replaces an annotated tag with a lightweight one; fetch it again to keep its message.
+      - name: Fetch tags
+        run: git fetch --force --tags
+
+      - name: Release notes
+        run: python3 .github/scripts/release_notes.py "$GITHUB_REF_NAME" > notes.md
 
       - name: Build k2-overrides.zip
         run: zip -r -X k2-overrides.zip k2-overrides -x 'k2-overrides/00_user_config.cfg'
 
-      - name: Attach to the release
+      - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ github.event.release.tag_name }}" k2-overrides.zip --clobber
+        run: gh release create "$GITHUB_REF_NAME" k2-overrides.zip --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag
