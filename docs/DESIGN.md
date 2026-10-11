@@ -591,7 +591,10 @@ with soak + 120 s and the heaters switched off mid-soak.
   `_K2.job_prepared`; the `BED_MESH_CALIBRATE` hook sets `_K2.fresh_mesh` and
   `fresh_mesh_temp` (bed target) after a calibration outside our flow only while
   it is set. The next print keeps that mesh (no soak, no cache) only if it runs
-  at that bed temperature and the bed is at most 10 °C below it
+  at that bed temperature (its own `BED_TEMP`, or the mesh temperature raised to
+  `default_bed_temp`: until 2026-10-11 only the latter counted, so a PLA job at
+  40 °C threw away a 40 °C calibration and measured again, seen on Reddit) and
+  the bed is at most 10 °C below it
   (the app's measurement turns the heaters off at its end); otherwise a console
   line says why not. `_K2_BEGIN` consumes both marks, any print end or abort
   (`_K2_RESET`) clears them. A time window after the calibration was tried and
