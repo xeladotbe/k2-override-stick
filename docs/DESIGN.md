@@ -157,12 +157,14 @@ idle ─────────────── START_PRINT ─────�
      middle; no objects: the whole grid). Grid points
      only, so no interpolation is needed. After each `PROBE`,
      `_K2_MESH_CHECK_POINT` reads `probe.last_z_result` (a separate macro, so it
-     is rendered after the probe ran) and appends `[x, y, probed - cached]` to
-     `_K2.mesh_check`. `_K2_MESH_CHECK_DONE` loads the profile if the mean is
+     is rendered after the probe ran) and appends `[x, y, probed - cached,
+     middle]` to `_K2.mesh_check`; the grid point at the bed middle, where Z is
+     homed, is always probed too. `_K2_MESH_CHECK_DONE` loads the profile if the mean is
      within the tolerance and no point is off by more than
      `mesh_check_point_factor` (default 1) times that. If the points are only
-     shifted (each within `mesh_check_shape_tolerance`, 0.025, of their mean)
-     it loads the profile too and stores the mean as `_K2.mesh_shift`, which
+     shifted (each within `mesh_check_shape_tolerance`, 0.025, of their mean;
+     with `tune_profile` best of the middle) it loads the profile too and
+     stores the middle's difference as `_K2.mesh_shift`, which
      `_K2_APPLY_Z_OFFSET` adds to the Z-offset; never if the Z-offset would end
      up below `min_z_offset` (the nozzle must not dig into the plate; default
      -0.05 still leaves a 0.2 mm first layer at 0.15 mm, and filaments like
@@ -170,7 +172,17 @@ idle ─────────────── START_PRINT ─────�
      the tolerance. Otherwise it calibrates with `PROFILE=` (replacing the
      cache). Each print that uses a cached profile counts in save_variables
      (`k2_mesh_uses`); after `mesh_max_uses` (20) `_K2_PLAN` plans `calibrate`
-     instead, because 9 points miss local changes. Shift case on hardware
+     instead, because 9 points miss local changes. Why the middle and not the
+     mean (2026-10-11, PLA 50 °C): middle +0.000, the other points -0.019 to
+     -0.034, mean -0.022 within the shape tolerance, so the old check shifted
+     the Z-offset by -0.022: edges perfect, the middle squished. Points that
+     moved while the middle didn't are a shape change (the cached mesh was
+     measured while the bed still rose: middle first, edges last, so its
+     edges read high), and Z is homed at the middle. Judging the shape against
+     the middle as well would re-measure that case, but even a fresh mesh
+     reads its middle 0.003-0.016 below a later probe (K2_TUNE rounds), so it
+     would re-measure often; hence only with `best`, while `good` accepts edges
+     up to the tolerance off (slight gaps rather than squish). Shift case on hardware
      (2026-10-03): the 5-point check said -0.039, the full mesh measured right
      after was -0.037 lower over the print area with the same shape (spread of
      the difference 0.023), between sessions the reference moved by +0.05 and

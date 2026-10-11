@@ -83,8 +83,9 @@
 #   mesh_check_tolerance (e.g. 1.5 or 2 = more lenient).
 #
 # variable_mesh_check_shape_tolerance [0.025]
-#   If the probed points are only shifted (each within this of their mean),
-#   the cached mesh is used and the shift added to the Z-offset, unless the
+#   If the probed points are only shifted (each within this of their mean;
+#   tune_profile best: of the bed middle), the cached mesh is used and the
+#   bed middle's shift added to the Z-offset, unless the
 #   Z-offset would go below min_z_offset (then the bed is measured again).
 #   0 = always measure again.
 #
