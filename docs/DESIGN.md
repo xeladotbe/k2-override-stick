@@ -313,7 +313,16 @@ shown as *best*.
   systematic: reported, left out of the tolerances. 2026-10-07: X5/Y5 read
   -0.021 in every round against the mesh (mesh probing there -0.165, `PROBE`
   ~-0.19); a whole-bed check over that corner re-measures because of it.
-  Possibly the plate gives differently in that corner; not solved.
+  2026-10-11 at 50 °C: X5/Y5 -0.037, X5/Y175 -0.018, X5/Y345 +0.027 (the
+  left edge tilts along Y), right side within 0.01. With the spring steel
+  sheet turned by 180° the pattern stayed at the same printer position, so
+  it belongs to the printer (bed, gantry or how Creality's mesh probes vs.
+  `PROBE`), not to the sheet; not solved.
+- Measured curves (5 mm aluminium plate, no standoffs): 70 °C dome 0.142,
+  settled ~25 min (good soak 21); 50 °C dome 0.064, the bed mostly rises as a
+  whole (middle +0.14), settled 27 min (good soak 15). 5 minutes of soak
+  still gave good PLA first layers at 50 °C, which is why `soak_minutes` caps
+  the tuned soak (see "Settings resolution").
 - `mesh_check_tolerance`: max(0.02 / 0.015, 2x / 1.5x the worst check mean +
   2x noise, 1.5x / 1.2x the worst single point); `mesh_check_shape_tolerance`:
   max(minimum, 2x / 1.5x the worst check shape); the check tolerance is raised
@@ -478,6 +487,19 @@ with soak + 120 s and the heaters switched off mid-soak.
 
 - Creality's calibration honors `PROFILE=` but also always saves the result as
   `default`.
+- `BED_MESH_CALIBRATE` with `PROBE_COUNT=`/`MESH_MIN=`/`MESH_MAX=` shuts
+  Klipper down (`IndexError` in the closed-source `prtouch_v3_wrapper.py`,
+  2026-10-01): only the configured 9x9 grid works. Other grids: single
+  `PROBE`s (`G1 Z5`, move, `PROBE`), as `K2_TUNE` does.
+- 9x9 is fine-grained enough (2026-10-11, 50 °C): 289 single `PROBE`s on a
+  17x17 grid against the fresh 9x9 mesh (Klipper's bicubic interpolation)
+  differ by 0.015 RMS between the mesh points, the same as on the mesh
+  points themselves. That is the baseline between `PROBE` and Creality's
+  mesh probing (up to 0.055 at the left edge and back row), larger than the
+  probe noise (~0.002) and what the cache check sees as single bad points.
+  Only one local feature fell between mesh rows: +0.07 at X218-260/Y26; it
+  stayed there with the sheet cleaned and turned by 180°, so it is under the
+  sheet (bed surface), not on it.
 - MCU shutdowns at the end of a print (removed user-hook feature, 2026-10-02
   to 10-03): `END_PRINT` searched `printer.configfile.settings` for hook
   macros before and after `END_PRINT_STOCK`, also with no hook installed
