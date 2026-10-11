@@ -56,6 +56,7 @@ printer behaves exactly like stock again.
 - [Per-print overrides](#per-print-overrides)
 - [Per-filament Z-offset](#per-filament-z-offset)
 - [Console commands](#console-commands)
+- [Leveling the bed screws](#leveling-the-bed-screws)
 - [What you see during a print](#what-you-see-during-a-print)
 - [Updating and firmware updates](#updating-and-firmware-updates)
 - [Troubleshooting](#troubleshooting)
@@ -532,6 +533,56 @@ Type these in the Fluidd/Mainsail console:
 | `K2_TUNE BED_TEMP=70` | Measures how *your* bed behaves at that temperature and suggests settings for it (see [Tuning the settings for your printer](#tuning-the-settings-for-your-printer)). |
 | `K2_TUNE_STOP` | Cancels a running `K2_TUNE` (not during its final mesh). |
 | `K2_FILAMENT_Z_OFFSET Z=0.045` | Sets this print's Z-offset, keeping a mesh-check shift (meant for the filament profile's start G-code, see [Per-filament Z-offset](#per-filament-z-offset)). |
+| `K2_SCREWS_TILT` | Tells you how far to turn each bed leveling screw (see [Leveling the bed screws](#leveling-the-bed-screws)). |
+
+## Leveling the bed screws
+
+Only for beds whose corners can be adjusted with screws or knobs (e.g. an
+aftermarket plate on springs). `K2_SCREWS_TILT` runs `Z_TILT_ADJUST`
+first (the left/right tilt is the printer's job, only what remains is the
+screws'), then probes the bed middle, each corner and the middle again, and
+prints how far to turn each screw: clockwise (CW) or counter-clockwise (CCW)
+as seen from below, where the knobs are, in minutes on a clock face (60
+minutes = one turn):
+
+```
+K2_SCREWS_TILT (after Z_TILT, relative to the corners' mean, tolerance 0.03 mm):
+  front left: -0.185, CCW 16 min seen from below (loosen)
+  front right: -0.267, CCW 23 min seen from below (loosen)
+  back left: +0.159, CW 14 min seen from below (tighten)
+  back right: +0.292, CW 25 min seen from below (tighten)
+Turn the screws, then measure again
+```
+
+Each corner is compared with the mean of all corners, not with the middle: a
+heated bed domes (the middle rises above the corners), and no screw can fix
+that, since raising every corner lifts the middle along with them. The dome
+is shown as a note and left to the mesh.
+
+In Fluidd/Mainsail the result also opens as a popup with a *Measure again*
+button. Turn the screws, measure again, until every corner says `ok`.
+
+- It measures the bed as it is. Cold is the best choice: quick and
+  repeatable. Warm works too (the dome drops out), but only after a full soak,
+  or the bed is still changing shape while it probes. A bed that is still
+  cooling down (heater off, above 30 °C) or still heating gets a note saying
+  so: don't turn the screws on those results.
+- Give the springs some preload first: if the knobs only just touch, tighten
+  all four by the same amount (e.g. one turn); that lowers the whole plate
+  evenly and leaves room to turn either way.
+- Changing a screw's direction first takes up the thread's backlash, so the
+  first few minutes after a reversal move the corner less.
+- A twisted bed carrier can't be fixed by moving the plate as a whole; the
+  screws handle it only because each corner sits on its own spring.
+
+Settings in `00_user_config.cfg`:
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `screw_positions` | `{}` | Probe point `[X, Y]` next to each screw, e.g. `{'front left': [20, 20], ...}`. `{}` = the four corners of `[bed_mesh]`. |
+| `screw_pitch` | `0.7` | Thread pitch of the screws in mm per turn (M4 `0.7`, M3 `0.5`). |
+| `screw_loosen_raises` | `1` | `1` = loosening a screw raises its corner (spring under the plate), `0` = tightening does. |
+| `screw_tolerance` | `0.03` | A corner within this many mm of the middle counts as level. |
 
 ## What you see during a print
 

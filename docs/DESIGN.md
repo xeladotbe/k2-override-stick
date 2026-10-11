@@ -32,7 +32,8 @@ k2-override-stick/
 │   ├── 20_bed_mesh.cfg           # BED_MESH_CALIBRATE / BED_MESH_CALIBRATE_START_PRINT hooks, K2_CLEAR_MESH_CACHE
 │   ├── 30_print_flow.cfg         # START_PRINT, soak, start sequence, Z-offset
 │   ├── 40_print_hooks.cfg        # END_PRINT, PRINT_PREPARE_CLEAR, RESUME_EXTERNAL_PROCESS, PRINT_TEMP_SET
-│   └── 50_tune.cfg               # K2_TUNE: measures the bed, suggests soak and tolerances
+│   ├── 50_tune.cfg               # K2_TUNE: measures the bed, suggests soak and tolerances
+│   └── 60_screws.cfg             # K2_SCREWS_TILT: minutes per leveling screw
 ├── LICENSE
 └── docs/DESIGN.md
 ```
@@ -330,6 +331,42 @@ shown as *best*.
   single-point limit).
 - `soak_stable_mm_per_min`: the largest rate that doesn't end the dynamic soak
   too early on this curve, or `0` (see "Dynamic soak").
+
+## K2_SCREWS_TILT
+
+`60_screws.cfg`, the procedure used by hand on 2026-10-11 to level the plate
+again after the standoff test. Refuses while printing, while `_K2` isn't idle
+or while `K2_TUNE` runs. `G28` if not homed, `Z_TILT_ADJUST` if `[z_tilt]` is
+configured (before it, up to 1 mm of left/right tilt that the two Z motors
+correct anyway would end up in the advice), `G28 Z`, then `PROBE` at the mesh
+middle, each screw point (`screw_positions`, default the `[bed_mesh]` corners,
+so K2/K2 Pro beds work too) and the middle again. `_K2_SCREWS_REPORT` (a
+separate macro: it renders after the probes) takes each corner minus the mean
+of all corners; minutes = |d| / `screw_pitch` * 60, direction from
+`screw_loosen_raises`, printed as CW/CCW seen from below (right-hand thread:
+tightening a knob under the bed is clockwise from there; the user once turned
+mirror-inverted thinking from above) plus the word. The first version took the
+middle as reference: on a warm bed (dome ~0.09) it told to loosen three knobs,
+and raising every corner lifts the middle too, so it would have asked forever.
+The middle (mean of both middle probes) now only gives a dome note. A bed
+cooling down (heater off, above 30 °C) or below its target gets a note too:
+two runs on a bed cooling from ~45 to 39 °C after a restart read the dome
+growing (0.088 -> 0.096, the edges cool and drop first) and back right +0.06
+to +0.07 where it read +0.033 cold. The middle moving by more than half the tolerance
+between first and last probe gets a note (bed still warming or cooling).
+Measured on the K2 Plus with the IDE plate (M4 knobs): one turn moved the
+plate 0.68 mm (0.0113 mm per minute, the pitch); right after a reversal 12
+minutes moved a corner only 0.035 (backlash), hence the note. Repeated probes
+per corner scattered 0.004-0.012 (middle 0.007), so a tolerance of 0.03 is
+well above the noise.
+
+Popups (`K2_SCREWS_TILT`, `K2_STATUS`): Klipper's `action:prompt_*`
+lines, which Fluidd (1.30 on this printer) and Mainsail show as a dialog.
+There is no `[respond]` module, but `action_respond_info` emits the same
+`// action:...` lines. They go out while a macro renders, so the macro that
+opens a popup must be called after whatever it reports (`_K2_STATUS_REPORT`
+opens it, each `_K2_TUNE_REPORT POPUP=1` adds its lines, `_K2_PROMPT_SHOW`
+adds Close and shows it). Close runs `_K2_PROMPT_CLOSE` (`action:prompt_end`).
 
 ## Hooks into the stock macros
 
