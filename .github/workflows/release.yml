@@ -25,6 +25,12 @@ jobs:
       - name: Release notes
         run: python3 .github/scripts/release_notes.py "$GITHUB_REF_NAME" > notes.md
 
+      # K2_STATUS shows it; a folder copied from the repository says 'dev'.
+      - name: Stamp the version
+        run: |
+          sed -i "s/^variable_version: 'dev'$/variable_version: '${GITHUB_REF_NAME} (${GITHUB_SHA::7})'/" k2-overrides/00_version.cfg
+          grep -q "^variable_version: '${GITHUB_REF_NAME} (" k2-overrides/00_version.cfg
+
       - name: Build k2-overrides.zip
         run: zip -r -X k2-overrides.zip k2-overrides -x 'k2-overrides/00_user_config.cfg'
 

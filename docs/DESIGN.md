@@ -28,6 +28,7 @@ k2-override-stick/
 │   ├── 00_state.cfg              # save_variables, SET_OVERRIDE_ACTIVE, per-print state _K2 + helpers
 │   ├── 00_user_config.cfg        # the user's USER_CONFIG overrides (not in git, created by bootstrap.sh)
 │   ├── 00_user_config.cfg.example  # all settings and notations as one comment; template for the above
+│   ├── 00_version.cfg            # _K2_VERSION: 'dev', the release workflow writes "<tag> (<commit>)" into the zip
 │   ├── 10_print_plan.cfg         # _K2_PLAN
 │   ├── 20_bed_mesh.cfg           # BED_MESH_CALIBRATE / BED_MESH_CALIBRATE_START_PRINT hooks, K2_CLEAR_MESH_CACHE
 │   ├── 30_print_flow.cfg         # START_PRINT, soak, start sequence, Z-offset
@@ -641,7 +642,9 @@ release with notes from `.github/scripts/release_notes.py` (the annotated
 tag's message first, for what the commits can't tell, such as a step a manual
 install must not miss; then the commits since the previous tag grouped by
 type, `chore`/`ci`/`test`/`build`/`style` left out; then the usual upgrade
-steps) and attaches `k2-overrides.zip` (without `00_user_config.cfg`).
+steps) and attaches `k2-overrides.zip` (without `00_user_config.cfg`, with
+`00_version.cfg` stamped to "<tag> (<commit>)", the first line of `K2_STATUS`:
+a user's report then says exactly what they run).
 Preview the notes locally with `python .github/scripts/release_notes.py
 v0.4.0` before the tag exists. The workflow builds the ZIP itself: a release
 created by its token wouldn't trigger a second workflow.

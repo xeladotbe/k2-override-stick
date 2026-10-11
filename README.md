@@ -165,11 +165,14 @@ bootstrap if you didn't create it yourself):
     ├── 00_state.cfg
     ├── 00_user_config.cfg      ← your settings
     ├── 00_user_config.cfg.example  ← every setting explained, template for the above
+    ├── 00_version.cfg          ← the release, shown by K2_STATUS
     ├── 10_print_plan.cfg
     ├── 20_bed_mesh.cfg
     ├── 30_print_flow.cfg
     ├── 40_print_hooks.cfg
-    └── 50_tune.cfg
+    ├── 50_tune.cfg
+    ├── 60_screws.cfg
+    └── k2_overrides.cfg        ← includes all of the above, the one line in printer.cfg points here
 ```
 
 ### 2. Plug it in and run the bootstrap once
@@ -526,7 +529,7 @@ Type these in the Fluidd/Mainsail console:
 |---|---|
 | `SET_OVERRIDE_ACTIVE VALUE=0` | Switch the overrides off without pulling the stick (`VALUE=1` switches them on again). |
 | `APPLY_MATERIAL_Z_OFFSET MATERIAL=PETG BED_TYPE="High Temp Plate"` | Shows and applies the Z-offset for that combination (only outside a print). |
-| `K2_STATUS` | Shows whether the overrides are active, the cached meshes with how many prints used them, and the last 10 mesh checks. In Fluidd/Mainsail also as a popup; `K2_STATUS POPUP=0` writes to the console only. |
+| `K2_STATUS` | Shows the installed version (e.g. `k2-overrides v0.4.0 (9c70d4b)`; `dev` = copied from the repository), whether the overrides are active, the cached meshes with how many prints used them, and the last 10 mesh checks. In Fluidd/Mainsail also as a popup; `K2_STATUS POPUP=0` writes to the console only. |
 | `K2_STATUS MATERIAL=PETG BED_TYPE="High Temp Plate" BED_TEMP=70` | The same, plus every setting as it resolves for that combination (outside a print). |
 | `K2_CLEAR_MESH_CACHE` | Deletes all cached meshes (never the `default` profile). |
 | `K2_CLEAR_MESH_CACHE FILTER=70c` | Deletes only the cached meshes whose name contains `70c`. |
