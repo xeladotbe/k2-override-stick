@@ -525,7 +525,7 @@ Type these in the Fluidd/Mainsail console:
 |---|---|
 | `SET_OVERRIDE_ACTIVE VALUE=0` | Switch the overrides off without pulling the stick (`VALUE=1` switches them on again). |
 | `APPLY_MATERIAL_Z_OFFSET MATERIAL=PETG BED_TYPE="High Temp Plate"` | Shows and applies the Z-offset for that combination (only outside a print). |
-| `K2_STATUS` | Shows whether the overrides are active, the cached meshes with how many prints used them, and the last 10 mesh checks. |
+| `K2_STATUS` | Shows whether the overrides are active, the cached meshes with how many prints used them, and the last 10 mesh checks. In Fluidd/Mainsail also as a popup; `K2_STATUS POPUP=0` writes to the console only. |
 | `K2_STATUS MATERIAL=PETG BED_TYPE="High Temp Plate" BED_TEMP=70` | The same, plus every setting as it resolves for that combination (outside a print). |
 | `K2_CLEAR_MESH_CACHE` | Deletes all cached meshes (never the `default` profile). |
 | `K2_CLEAR_MESH_CACHE FILTER=70c` | Deletes only the cached meshes whose name contains `70c`. |
