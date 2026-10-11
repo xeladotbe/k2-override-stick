@@ -241,6 +241,26 @@ if [ "$HAVE" != "$(printf '%s' "$WANTED")" ]; then
     logger -t k2-overrides "Rewrote the include of custom/k2_overrides.cfg"
 fi
 
+# Creality's forced_leveling makes the printer measure a full mesh before every
+# print, whatever the slicer says, which defeats the soak and the mesh cache (a
+# firmware update was seen switching it on). Only an existing "true" under
+# [virtual_sdcard] is set to false: firmware without the option is left alone,
+# an option Klipper doesn't know would stop it from starting.
+if awk '
+    /^[[:space:]]*\[/ { sec = $0 }
+    sec ~ /^[[:space:]]*\[virtual_sdcard\]/ && /^[[:space:]]*forced_leveling[[:space:]]*[:=][[:space:]]*([Tt]rue|1)([[:space:]#;].*)?$/ {
+        print "forced_leveling: false"; hit = 1; next
+    }
+    { print }
+    END { exit hit ? 0 : 1 }
+' "$PRINTER_CFG" > "$PRINTER_CFG.tmp4"; then
+    mv "$PRINTER_CFG.tmp4" "$PRINTER_CFG"
+    CHANGED=1
+    logger -t k2-overrides "Set [virtual_sdcard] forced_leveling to false (it forces a full mesh before every print)"
+else
+    rm -f "$PRINTER_CFG.tmp4"
+fi
+
 # Cache teardown.sh (and its common.sh dependency) locally -- the stick is
 # no longer mounted when it's removed.
 cp "$SCRIPT_DIR/teardown.sh" "$CACHE_DIR/teardown.sh"

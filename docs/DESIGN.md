@@ -639,6 +639,14 @@ blocks inside `gcode:`, reasoning goes into this file.
 Commits follow Conventional Commits (`feat(scope): ...`, `fix`, `docs`, ...):
 the release notes are built from them.
 
+`forced_leveling` (Creality's `[virtual_sdcard]` option in `printer.cfg`,
+seen 2026-10-11 on a user's printer after a firmware update) makes the printer
+measure a full mesh before every print regardless of the slicer's Print
+Calibration. `bootstrap.sh` sets an existing `true` to `false` on every run;
+it never adds the option, because a firmware that doesn't know it would refuse
+to start Klipper (the same reason it isn't in `00_defaults.cfg` as a
+`[virtual_sdcard]` override). `_K2_PLAN` and `K2_STATUS` warn while it is on.
+
 Releasing: push a tag, e.g. `git tag -a v0.4.0 -m "<upgrade notes>"` and
 `git push origin v0.4.0`. `.github/workflows/release.yml` then publishes the
 release with notes from `.github/scripts/release_notes.py` (the annotated

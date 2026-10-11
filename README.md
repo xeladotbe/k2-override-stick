@@ -248,8 +248,14 @@ feedback is welcome.
 
    Fluidd/Mainsail may hide files starting with a dot; they show up with
    "show hidden files". Instead of creating the file you can also run
-   `SET_OVERRIDE_ACTIVE VALUE=1` in the console after step 6, which writes it.
-6. **Restart.** Save and run `FIRMWARE_RESTART` in the console. The next print
+   `SET_OVERRIDE_ACTIVE VALUE=1` in the console after step 7, which writes it.
+6. **Turn off forced leveling.** In `printer.cfg`, under `[virtual_sdcard]`,
+   set `forced_leveling: false` if it says `true`. With `true` the printer
+   measures a full mesh before every print, whatever the slicer says, and the
+   soak and mesh cache can't help (a firmware update was seen switching it on).
+   If your firmware has no such line, leave it out. (The stick installation does
+   this step itself.)
+7. **Restart.** Save and run `FIRMWARE_RESTART` in the console. The next print
    starts with a `[K2_OVERRIDES] Plan:` line in the console.
 
 Then set up the slicer as below.
@@ -261,8 +267,8 @@ run `FIRMWARE_RESTART`.
 `00_user_config.cfg`) and run `FIRMWARE_RESTART`. Check the release notes for renamed macros.
 
 **After every firmware update:** before the next print, open `gcode_macro.cfg`
-and check that the six `_STOCK` names from step 3 are still there, and
-`printer.cfg` for the include from step 4. If the update restored Creality's
+and check that the six `_STOCK` names from step 3 are still there,
+`printer.cfg` for the include from step 4 and `forced_leveling` from step 6. If the update restored Creality's
 files, redo those steps. Otherwise the print stops with
 `Unknown command "START_PRINT_STOCK"`.
 
@@ -661,6 +667,8 @@ ssh root@<printer-ip> "logread | grep k2-overrides"
 | Z-offset or soak ignore the material/plate | Does the `Plan:` line show your material and plate? If not, check the [slicer setup](#slicer-setup). Plate names must match exactly, including upper/lower case. |
 | A setting shows `0` unexpectedly | Your `00_user_config.cfg` lists the setting without a `'default'` (it replaces the default completely), or an outer `'default'` per plate lacks its own `'default'`. See [Configuration](#configuration). |
 | `ERROR: ...` lines at the print start | A `K2_` parameter or `MATERIAL`/`BED_TYPE` value was rejected; the line says why. |
+| A full mesh before every print, even with "Print Calibration" off | Check `printer.cfg` → `[virtual_sdcard]` → `forced_leveling`: it must be `false` (the `Plan:` line and `K2_STATUS` warn when it's on). The stick installation sets it on every boot; a manual installation has to, see [step 6](#manual-installation-without-stick-or-ssh). Also check the slicer's start G-code: a profile made for another firmware may call `BED_MESH_CALIBRATE` itself. |
+| Something behaves oddly after a firmware update | Stick installation: run `sh /mnt/UDISK/.k2-overrides/source/scripts/uninstall.sh`, then the bootstrap again ([installation step 2](#2-plug-it-in-and-run-the-bootstrap-once)); that rebuilds everything from scratch. |
 
 ## Uninstalling
 
