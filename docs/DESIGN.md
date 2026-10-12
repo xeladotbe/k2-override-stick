@@ -262,8 +262,9 @@ idle ─────────────── START_PRINT ─────�
    `_K2_SOAK_PROBE` probes the bed middle (every 5th minute, from minute 0,
    also the 4 `[bed_mesh]` corners; `_K2_SOAK_REC` records each probe) and
    `_K2_SOAK_EVAL` compares the mean of the last 3 minutes with the same 3
-   minutes 5 earlier, and the dome (middle minus the corner mean) of the
-   last two corner rounds. Both at most `soak_stable_mm_per_min` per minute
+   minutes 5 earlier, and each corner against the middle between the last
+   two corner rounds (the largest of the 4 counts; the console shows their
+   mean as the dome). Both at most `soak_stable_mm_per_min` per minute
    sets `soak_left` 0 (the tick has already decremented it, so the next tick
    finishes). Earliest end: minute 7. The dome was added on 2026-10-12: a
    bed that had cooled to 37 °C after a print and was heated back to 50 °C
@@ -272,8 +273,12 @@ idle ─────────────── START_PRINT ─────�
    in the mesh of the warm bed (shape 0.046), and the mesh measured instead
    caught the dome while it was still growing. Same reasoning as `K2_TUNE`'s
    settling criterion: the shape is what the mesh must match. A corner round
-   costs ~15 s. `K2_TUNE`'s replay below still only uses the middle; the
-   dome condition can only end a soak later, never earlier. So a soak of 7 minutes or less runs fixed, without probing (after the
+   costs ~15 s. Per corner, not the corner mean: a stock bed can be bent
+   like a potato chip (two opposite corners up, two down), and then the
+   mean stays flat while the shape changes. Probe noise per corner rate is
+   ~0.0012 mm/min (single probes, 5 minutes apart), so 0.004 is ~3x that.
+   `K2_TUNE`'s replay below still only uses the middle; the corner
+   condition can only end a soak later, never earlier. So a soak of 7 minutes or less runs fixed, without probing (after the
    soak cap of 2026-10-11 a 5-minute soak with a tuned rate probed every
    minute for nothing). `K2_TUNE` also records the bed heater power per minute, for a later
    criterion that could tell a soaked plate from a cold start (falling power
@@ -309,8 +314,9 @@ idle, or with the bed above 35 °C (`FORCE=1`). Nozzle off throughout: on
 2. `_K2_TUNE_TICK` (`delayed_gcode`, so `K2_TUNE_STOP` and a starting print
    get in between): every 5 s until the bed is within 1 °C, then every minute
    `PROBE` at the middle, every 5th minute also the 4 mesh corners, no
-   re-homing. `_K2_TUNE_EVAL`: settled when the dome (middle minus corner
-   mean) changed at most 0.01 over each of the last two corner rounds and the
+   re-homing. `_K2_TUNE_EVAL`: settled when each corner against the middle
+   (their mean is the dome) changed at most 0.01 over each of the last two
+   corner rounds (per corner since 2026-10-12, for saddle-shaped beds) and the
    whole bed rises at most 0.0025 mm/min (3-minute means of the middle, 5
    minutes apart); or `MAX_MINUTES`. A slow rise of the whole bed (frame and
    chamber warming, ~0.002 mm/min on 2026-10-07) is harmless for a first
@@ -326,8 +332,8 @@ idle, or with the bed above 35 °C (`FORCE=1`). Nozzle off throughout: on
    homes, suggestions; `k2_tune_runs` counts runs, Jinja has no date) and
    `_K2_TUNE_REPORT` prints it (`K2_STATUS` too).
 
-Suggestions come in two tiers, rounded up to 0.005. The soak ends when the
-dome stays within *band* of its final value and the whole bed rises at most
+Suggestions come in two tiers, rounded up to 0.005. The soak ends when each
+corner against the middle stays within *band* of its final value and the whole bed rises at most
 *rate* (3-minute means, 5 minutes apart): *good* 0.02 / 0.004 mm/min with
 looser tolerances (cache used more often), *best* 0.01 / 0.003 with
 tolerances close to what was measured. Older saved results without tiers are
