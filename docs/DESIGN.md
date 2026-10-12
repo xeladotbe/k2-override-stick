@@ -259,11 +259,21 @@ idle ─────────────── START_PRINT ─────�
    temperature the tick homes if Z isn't homed and waits for the nozzle at
    the stock clear temperature (a hotend still heating or cooling shifts the
    probe like a moving bed). Then every full minute of the soak
-   `_K2_SOAK_PROBE` probes the bed middle and `_K2_SOAK_EVAL` compares the
-   mean of the last 3 minutes with the same 3 minutes 5 earlier; at most
-   `soak_stable_mm_per_min` per minute sets `soak_left` 0 (the tick has
-   already decremented it, so the next tick finishes). Earliest end: minute
-   7. So a soak of 7 minutes or less runs fixed, without probing (after the
+   `_K2_SOAK_PROBE` probes the bed middle (every 5th minute, from minute 0,
+   also the 4 `[bed_mesh]` corners; `_K2_SOAK_REC` records each probe) and
+   `_K2_SOAK_EVAL` compares the mean of the last 3 minutes with the same 3
+   minutes 5 earlier, and the dome (middle minus the corner mean) of the
+   last two corner rounds. Both at most `soak_stable_mm_per_min` per minute
+   sets `soak_left` 0 (the tick has already decremented it, so the next tick
+   finishes). Earliest end: minute 7. The dome was added on 2026-10-12: a
+   bed that had cooled to 37 °C after a print and was heated back to 50 °C
+   within a minute had a quiet middle (0.0018 mm/min) at minute 7, but the
+   cached-mesh check right after found the edges +0.03 to +0.09 higher than
+   in the mesh of the warm bed (shape 0.046), and the mesh measured instead
+   caught the dome while it was still growing. Same reasoning as `K2_TUNE`'s
+   settling criterion: the shape is what the mesh must match. A corner round
+   costs ~15 s. `K2_TUNE`'s replay below still only uses the middle; the
+   dome condition can only end a soak later, never earlier. So a soak of 7 minutes or less runs fixed, without probing (after the
    soak cap of 2026-10-11 a 5-minute soak with a tuned rate probed every
    minute for nothing). `K2_TUNE` also records the bed heater power per minute, for a later
    criterion that could tell a soaked plate from a cold start (falling power
