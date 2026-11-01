@@ -276,6 +276,9 @@ if [ "$CHANGED" = "1" ]; then
         logger -t k2-overrides "WARNING: Klipper not ready after restart: ${msg:-no answer}"
         exit 1
     fi
+    if [ -n "$KLIPPY_ERROR_SEEN" ]; then
+        logger -t k2-overrides "WARNING: Klipper recovered from an error during restart: ${KLIPPY_ERROR_SEEN}"
+    fi
 fi
 
 gcode_call "SET_OVERRIDE_ACTIVE VALUE=1"

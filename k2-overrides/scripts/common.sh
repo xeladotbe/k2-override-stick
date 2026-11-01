@@ -57,10 +57,16 @@ print_running() {
 }
 
 # Waits (max ~1 min) until Klipper is ready, e.g. after a firmware_restart.
+# A passing error state (e.g. "MCU rpi ... is shutdown") lands in KLIPPY_ERROR_SEEN.
 wait_klippy_ready() {
     tries=0
+    KLIPPY_ERROR_SEEN=""
     while [ $tries -lt 30 ]; do
-        echo "$(http_get "/printer/info")" | grep -q '"state": *"ready"' && return 0
+        info=$(http_get "/printer/info")
+        echo "$info" | grep -q '"state": *"ready"' && return 0
+        if [ -z "$KLIPPY_ERROR_SEEN" ] && echo "$info" | grep -q '"state": *"error"'; then
+            KLIPPY_ERROR_SEEN=$(echo "$info" | grep -oE '"state_message": *"([^\\"]|[\\].)*"' | head -1)
+        fi
         sleep 2
         tries=$((tries + 1))
     done

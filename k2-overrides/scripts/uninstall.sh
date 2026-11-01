@@ -80,6 +80,9 @@ log "Uninstall: removed the includes and config files"
 http_post "/printer/firmware_restart" "{}"
 sleep 3
 if wait_klippy_ready; then
+    if [ -n "$KLIPPY_ERROR_SEEN" ]; then
+        log "Uninstall: WARNING: Klipper recovered from an error during restart: ${KLIPPY_ERROR_SEEN}"
+    fi
     log "Uninstall: done, the printer runs the stock configuration"
 else
     msg=$(http_get "/printer/info" | grep -o '"state_message": *"[^"]*"' | head -1)
