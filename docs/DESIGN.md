@@ -56,7 +56,12 @@ stock (`START_PRINT` checks it, all other hooks only act inside our own flow).
 
 **Triggers.** The hotplug script reacts to `sd*` add/remove. On add it waits
 for the mount at `/mnt/exUDISK` and runs `bootstrap.sh` from the stick in the
-background; on remove it runs the cached `teardown.sh`. The boot script covers
+background; on remove it runs the cached `teardown.sh`, which waits 15 s and
+switches off only if the stick hasn't come back (mounted device node and
+`k2-overrides` folder): on 2026-11-01 the stick dropped off the USB bus mid-print
+(`usb 1-1.1: USB disconnect`, nobody touched it) and was mounted again 11 s
+later. One remove fires per block device (`sda`, `sda1`), so it runs twice.
+The boot script covers
 what hotplug can't: at power-on the "add" may fire before Klipper/Moonraker are
 up (or not at all), and a stick pulled while the printer was off never sends
 "remove". At boot it waits for the mount and runs `bootstrap.sh` (stick present)
@@ -75,8 +80,11 @@ or `teardown.sh` (no stick).
    different (copy, `chmod`, atomic `mv`) and enables the boot script if
    `/etc/rc.d` has no link yet.
 3. Waits until Klipper has left its startup phase, also when it is in `error`
-   (so a broken config can still be repaired). Then stops without changing
-   anything if a print runs or is paused: the restart in step 10 would kill it.
+   (so a broken config can still be repaired). Then stops if a print runs or
+   is paused (the restart in step 10 would kill it), after only
+   `SET_OVERRIDE_ACTIVE VALUE=1` if our macros are loaded: the switch is only
+   read by `START_PRINT`, and without it a stick that came back mid-print left
+   the next print stock (2026-11-01).
 4. Backup of the pristine `gcode_macro.cfg` as `.k2-overrides/gcode_macro.cfg.orig`
    whenever it has no `_STOCK` section of ours (first run, or after a firmware
    update replaced it); in that case the migrations are replayed from 0 even if

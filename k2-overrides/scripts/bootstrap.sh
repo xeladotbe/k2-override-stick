@@ -65,9 +65,16 @@ fi
 # SET_OVERRIDE_ACTIVE calls below need them.
 wait_klippy_settled || logger -t k2-overrides "WARNING: Klipper/Moonraker not answering, continuing anyway"
 
-# Nothing while printing: the Klipper restart below would kill the print.
+# Nothing while printing: the Klipper restart below would kill the print. The
+# switch alone is safe (only START_PRINT reads it): a stick that dropped off
+# the USB bus mid-print and came back would otherwise leave the next print stock.
 if [ "$FORCE" = "0" ] && print_running; then
-    msg="A print is running, nothing changed. Re-plug the stick or run the bootstrap again after it (or with -f)."
+    if http_get "/printer/objects/list" | grep -q '"gcode_macro SET_OVERRIDE_ACTIVE"'; then
+        gcode_call "SET_OVERRIDE_ACTIVE VALUE=1"
+        msg="A print is running: overrides active, config not updated. Re-plug the stick or run the bootstrap again after it (or with -f)."
+    else
+        msg="A print is running, nothing changed. Re-plug the stick or run the bootstrap again after it (or with -f)."
+    fi
     echo "$msg"
     logger -t k2-overrides "$msg"
     exit 0
