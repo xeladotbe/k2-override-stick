@@ -589,7 +589,7 @@ Settings in `00_user_config.cfg`:
 | Setting | Default | Meaning |
 |---|---|---|
 | `screw_positions` | `{}` | Probe point `[X, Y]` next to each screw, e.g. `{'front left': [20, 20], ...}`. `{}` = the four corners of `[bed_mesh]`. |
-| `screw_pitch` | `0.7` | Thread pitch of the screws in mm per turn (M4 `0.7`, M3 `0.5`). |
+| `screw_pitch` | `0.7` | Thread pitch of the screws in mm per turn (M4 `0.7`, M3 `0.5`). One number for all screws, or one per corner as `[back left, back right, front left, front right]` seen from the front, e.g. `[0.5, 0.7, 0.5, 0.5]` for M3 everywhere but an M4 back right. With your own `screw_positions` names: `{'name': 0.5, ...}`. |
 | `screw_loosen_raises` | `1` | `1` = loosening a screw raises its corner (spring under the plate), `0` = tightening does. |
 | `screw_tolerance` | `0.03` | A corner within this many mm of the middle counts as level. |
 

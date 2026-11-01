@@ -120,7 +120,9 @@
 # variable_screw_tolerance           [0.03]
 #   K2_SCREWS_TILT: probe point next to each leveling screw, e.g.
 #   {'front left': [20, 20], ...}; thread pitch in mm per turn (M4 0.7,
-#   M3 0.5); 1 if loosening raises the corner; mm a corner may be off the
+#   M3 0.5), one number for all screws or a list [back left, back right,
+#   front left, front right] seen from the front, e.g. [0.5, 0.7, 0.5, 0.5];
+#   1 if loosening raises the corner; mm a corner may be off the
 #   middle to count as level. (README: "Leveling the bed screws")
 #
 # For a single print, K2_<SETTING>=<number> on the slicer's START_PRINT line

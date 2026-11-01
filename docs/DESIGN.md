@@ -373,7 +373,11 @@ correct anyway would end up in the advice), `G28 Z`, then `PROBE` at the mesh
 middle, each screw point (`screw_positions`, default the `[bed_mesh]` corners,
 so K2/K2 Pro beds work too) and the middle again. `_K2_SCREWS_REPORT` (a
 separate macro: it renders after the probes) takes each corner minus the mean
-of all corners; minutes = |d| / `screw_pitch` * 60, direction from
+of all corners; minutes = |d| / pitch * 60 (`screw_pitch` resolved per screw
+before probing: a number, a list in the order back left, back right, front
+left, front right as seen from the front, or a dict by screw name, so a plate
+with M3 knobs around one M4 fixed point gets right minutes; a screw without a
+pitch stops the run before it moves), direction from
 `screw_loosen_raises`, printed as CW/CCW seen from below (right-hand thread:
 tightening a knob under the bed is clockwise from there; the user once turned
 mirror-inverted thinking from above) plus the word. The first version took the
