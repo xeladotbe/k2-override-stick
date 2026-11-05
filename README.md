@@ -402,8 +402,9 @@ warped "taco" bed), so the right soak time and check tolerances do too.
 
 1. Start it with a **cold** printer (bed at room temperature), plate on, nozzle
    clean. Nothing may be printing. It moves on its own for about an hour:
-   keep the door closed and your hands out. A warm bed is refused with an
-   error asking you to let it cool down first.
+   keep the door closed and your hands out. A warm bed (>35°C) is refused with an
+   error asking you to let it cool down first; `FORCE=1` skips that check, but
+   the settling curve is then incomplete and the suggestions less reliable.
 2. It homes, probes the bed middle 10 times (probe noise), heats the bed and
    then probes the middle every minute (the corners every 5 minutes) until the
    bed stops moving (at most `MAX_MINUTES=`, default 45).
