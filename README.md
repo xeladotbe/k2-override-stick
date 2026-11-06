@@ -402,7 +402,9 @@ warped "taco" bed), so the right soak time and check tolerances do too.
 
 1. Start it with a **cold** printer (bed at room temperature), plate on, nozzle
    clean. Nothing may be printing. It moves on its own for about an hour:
-   keep the door closed and your hands out.
+   keep the door closed and your hands out. A warm bed (>35°C) is refused with an
+   error asking you to let it cool down first; `FORCE=1` skips that check, but
+   the settling curve is then incomplete and the suggestions less reliable.
 2. It homes, probes the bed middle 10 times (probe noise), heats the bed and
    then probes the middle every minute (the corners every 5 minutes) until the
    bed stops moving (at most `MAX_MINUTES=`, default 45).
@@ -421,6 +423,13 @@ it, raise `soak_minutes` (per material or plate). Run `K2_TUNE` once for each be
 you print at. Prints at other temperatures keep the normal settings, and
 `K2_STATUS` lists the temperatures still missing a `K2_TUNE` run. You can still copy single values into the config instead. The nozzle stays
 off throughout. `K2_TUNE_STOP` cancels it, except during the final mesh.
+
+To re-tune a temperature (e.g. after changing the plate or the bed's
+mounting), run `K2_TUNE` again at that temperature, from cold. The new result
+replaces the old one for that temperature only; other temperatures keep
+theirs. Results are stored per bed temperature, not per plate, and are
+separate from the mesh cache: `K2_CLEAR_MESH_CACHE` doesn't touch them, and
+`K2_TUNE` doesn't add to or clear the cache.
 
 ### Changing settings later
 
