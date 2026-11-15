@@ -493,7 +493,14 @@ too differently between 50 and 70 °C to borrow), that tier's values replace
 `soak_minutes` from the config is a cap, the tuned soak only applies if it is
 shorter; otherwise the source reads `config, K2_TUNE <tier> <temp>C suggests
 <n>` (`Plan:` line, `K2_STATUS`). A `K2_SOAK_MINUTES=` param still sets it
-outright. Results saved before the tiers existed
+outright. Second exception: `mesh_check_tolerance`,
+`mesh_check_shape_tolerance` and `mesh_stable_tolerance` set to 0 in the config
+stay 0, since 0 means "don't check" and their default is not 0, so a 0 can only
+be deliberate; the source then reads `config (0, off), K2_TUNE … suggests <n>`.
+Before, `tune_profile` switched a check the user had turned off back on (review
+2026-11-13, R-08). `soak_stable_mm_per_min` is not in that group: its default
+*is* 0, so a config 0 can't be told from an unset value. Results saved before
+the tiers existed
 count as *best*. A missing result or an unknown value gets a console line and
 the config values; a missing temperature is also added to save_variables
 `k2_tune_missing` (`K2_STATUS` lists it, `K2_TUNE` for that temperature removes
