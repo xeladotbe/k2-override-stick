@@ -272,7 +272,16 @@ idle ─────────────── START_PRINT ─────�
    `idle_timeout` if needed, pauses the print (`PAUSE_BASE`) and starts
    `_K2_TICK`. Without a soak it goes straight to `_K2_CONTINUE`.
 4. **`_K2_TICK`** (`delayed_gcode`, every second): `heating` until the bed is
-   within 1 °C of the target, then `soaking` counts down (one line per minute).
+   within 1 °C of the target, then `soaking` runs until the clock time
+   `_K2.soak_end` (`toolhead.estimated_print_time` + `soak_s`), with one line
+   per minute. The soak used to count ticks instead, but a tick is only re-armed
+   one second *after* the previous one finished: a soak minute measured 63 s on
+   hardware, 85 s with a corner probe round, so a 15-minute soak ran about 16.2
+   and the mm/min rates were computed against minutes that were too long
+   (review 2026-11-13, R-09). `_K2.soak_minute` holds the next minute still to
+   report or probe, so a minute whose boundary passed during a long tick is
+   handled once and never twice. `_K2_SOAK_EVAL` ends the soak early by setting
+   `soak_end` to 0; `soak_left` is kept up to date for the console only.
    Then `_K2_FINISH_WAIT` (stops the tick, restores `idle_timeout`, runs
    `_K2_CONTINUE`, re-saves `PAUSE_STATE`) and `RESUME_BASE`. A resume pressed
    during the wait runs `_K2_FINISH_WAIT` early (see hooks). Once the phase is
@@ -375,7 +384,12 @@ hour would be wasted (review 2026-11-13, R-13). Nozzle off throughout: on
 2. `_K2_TUNE_TICK` (`delayed_gcode`, so `K2_TUNE_STOP` and a starting print
    get in between): every 5 s until the bed is within 1 °C, then every minute
    `PROBE` at the middle, every 5th minute also the 4 mesh corners, no
-   re-homing. `_K2_TUNE_EVAL`: settled when each corner against the middle
+   re-homing. Each round is scheduled against `_K2_TUNE.start_t`
+   (`toolhead.estimated_print_time` when the curve began), not 60 s after the
+   last round finished, so minute *n* really is *n* minutes in: the probes
+   themselves took ~3 s, a corner round ~15 s, which the suggested soak times
+   and the mm/min rates would otherwise carry as an error (review 2026-11-13,
+   R-09, same cause as the soak above). `_K2_TUNE_EVAL`: settled when each corner against the middle
    (their mean is the dome) changed at most 0.01 over each of the last two
    corner rounds (per corner since 2026-10-12, for saddle-shaped beds) and the
    whole bed rises at most 0.0025 mm/min (3-minute means of the middle, 5
