@@ -294,6 +294,18 @@ idle ─────────────── START_PRINT ─────�
 5. **`_K2_CONTINUE`**: phase `starting`, Creality's
    `BED_MESH_CALIBRATE_START_PRINT_STOCK` (homing, nozzle clean, mesh; its
    `BED_MESH_CALIBRATE` call follows the plan), `START_PRINT_STOCK`, then
+   `_K2_FINALIZE`. Creality homes Z and cleans the nozzle there only with
+   `START_PRINT.prepare` 0, and the app sets it to 1 before every print
+   (`PRINT_PREPARED`), so Z would still be the one homed before the soak:
+   everything the bed rose while soaking showed up in the mesh check as a
+   shift, and a fresh mesh's middle read that rise instead of ~0, so
+   `_K2_MESH_VERIFY` discarded it (review 2026-11-13, S-01; 2026-11-13 PLA
+   50C: shifted +0.092). After a soak with `prepare` 1, `_K2_CONTINUE`
+   therefore waits for the nozzle at `g28_ext_temp` and runs
+   `NEXT_HOMEZ_NACCU` + `G28 Z` itself (Creality's precise homing, ~18 s). No
+   `NOZZLE_CLEAR` (~75 s): the app cleaned the nozzle right before the soak,
+   it sat at 140C since, the soak probes and the mesh check use it as is, and
+   a clean heats and cools the nozzle, which shifts the probe.
    `_K2_FINALIZE`: re-loads our mesh profile if another one is active (after a
    calibration it is `default`, since Creality saves the result there too and
    leaves that one active; seen on hardware, a cached load stays active),
