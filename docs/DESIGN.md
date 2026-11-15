@@ -354,7 +354,10 @@ idle ─────────────── START_PRINT ─────�
 ## K2_TUNE
 
 `50_tune.cfg`, state in `_K2_TUNE`. Refuses while printing, while `_K2` isn't
-idle, or with the bed above 35 °C (`FORCE=1`). Nozzle off throughout: on
+idle, with the bed above 35 °C (`FORCE=1`), or with `BED_TEMP` below
+`default_bed_temp`: the plan looks a result up under
+`max(BED_TEMP, default_bed_temp)`, so a cooler one would never be found and the
+hour would be wasted (review 2026-11-13, R-13). Nozzle off throughout: on
 2026-10-06 the nozzle temperature (49 vs 140 °C) shifted all points by
 0.036 but didn't change the dome, and a cold nozzle can't ooze onto the probe.
 

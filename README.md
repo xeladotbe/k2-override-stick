@@ -405,7 +405,10 @@ Calibration"), that print uses the app's fresh mesh instead, without a soak.
 
 The defaults are cautious starting values. Beds differ (plate, mounting, a
 warped "taco" bed), so the right soak time and check tolerances do too.
-`K2_TUNE BED_TEMP=<temp>` measures them on your printer:
+`K2_TUNE BED_TEMP=<temp>` measures them on your printer. Use the bed
+temperature you actually print at; below Creality's `default_bed_temp` (50 °C
+on the K2 Plus) it is refused, because a print that cool still soaks and meshes
+at that temperature, so the result would never be used.
 
 1. Start it with a **cold** printer (bed at room temperature), plate on, nozzle
    clean. Nothing may be printing. It moves on its own for about an hour:
