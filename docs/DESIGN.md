@@ -376,9 +376,12 @@ idle ─────────────── START_PRINT ─────�
    `_K2_RESET`) and only while the G-code Z is at most 1 mm (before the first
    layer; after the stock purge line it is 0).
 6. **`END_PRINT`** (stock renamed): `_K2_RESET` (stops the tick, restores
-   `idle_timeout`, phase `idle`, empty plan),
-   then the stock macro. Nothing else runs here on purpose: see "Firmware
-   behavior" (MCU shutdowns at the end of a print).
+   `idle_timeout`, phase `idle`, empty plan, and sets a non-zero Z-offset back
+   to 0, naming it on the console: it belonged to that print. Stock
+   `START_PRINT` zeroed it at the *next* print, so until then it stayed on, was
+   visible in the UI and applied to manual moves and to `K2_SCREWS_TILT`,
+   review 2026-11-13, R-16), then the stock macro. Nothing else runs here on
+   purpose: see "Firmware behavior" (MCU shutdowns at the end of a print).
 
 ## K2_TUNE
 
