@@ -43,11 +43,19 @@ wait_klippy_settled() {
     return 1
 }
 
-# True while a print runs or is paused (our heat soak pauses it too); a Klipper
-# restart would kill it.
+# 0 = a print runs or is paused (our heat soak pauses it too), so a Klipper
+# restart would kill it. 1 = none. 2 = Moonraker never answered, so we don't
+# know -- the caller must not treat that as "no print" and restart Klipper
+# anyway (review 2026-11-13, R-11). An answer without print_stats (Klipper not
+# connected) stays 1, so a config that stops Klipper can still be repaired.
 print_running() {
-    # A Klipper in shutdown/error keeps the crashed print's printing/paused, but nothing is running anymore.
     reply=$(http_get "/printer/objects/query?print_stats=state&webhooks=state")
+
+    if [ -z "$reply" ] || ! echo "$reply" | grep -q '^HTTP/1'; then
+        return 2
+    fi
+
+    # A Klipper in shutdown/error keeps the crashed print's printing/paused, but nothing is running anymore.
     echo "$reply" | grep -q '"webhooks": *{ *"state": *"ready"' || return 1
     state=$(echo "$reply" | grep -o '"print_stats": *{ *"state": *"[a-z]*"')
     case "$state" in

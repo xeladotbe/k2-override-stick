@@ -68,16 +68,33 @@ wait_klippy_settled || logger -t k2-overrides "WARNING: Klipper/Moonraker not an
 # Nothing while printing: the Klipper restart below would kill the print. The
 # switch alone is safe (only START_PRINT reads it): a stick that dropped off
 # the USB bus mid-print and came back would otherwise leave the next print stock.
-if [ "$FORCE" = "0" ] && print_running; then
-    if http_get "/printer/objects/list" | grep -q '"gcode_macro SET_OVERRIDE_ACTIVE"'; then
-        gcode_call "SET_OVERRIDE_ACTIVE VALUE=1"
-        msg="A print is running: overrides active, config not updated. Re-plug the stick or run the bootstrap again after it (or with -f)."
-    else
-        msg="A print is running, nothing changed. Re-plug the stick or run the bootstrap again after it (or with -f)."
+# PRINT_UNKNOWN (Moonraker silent): the files are still written -- that can't
+# disturb a print -- but the restart at the end is skipped, since a print may
+# well be running. The settings then apply at the next restart.
+PRINT_UNKNOWN=0
+
+if [ "$FORCE" = "0" ]; then
+    PRINT_STATE=0
+    print_running || PRINT_STATE=$?
+
+    if [ "$PRINT_STATE" = "0" ]; then
+        if http_get "/printer/objects/list" | grep -q '"gcode_macro SET_OVERRIDE_ACTIVE"'; then
+            gcode_call "SET_OVERRIDE_ACTIVE VALUE=1"
+            msg="A print is running: overrides active, config not updated. Re-plug the stick or run the bootstrap again after it (or with -f)."
+        else
+            msg="A print is running, nothing changed. Re-plug the stick or run the bootstrap again after it (or with -f)."
+        fi
+        echo "$msg"
+        logger -t k2-overrides "$msg"
+        exit 0
     fi
-    echo "$msg"
-    logger -t k2-overrides "$msg"
-    exit 0
+
+    if [ "$PRINT_STATE" = "2" ]; then
+        PRINT_UNKNOWN=1
+        msg="WARNING: Moonraker is not answering, so it is unknown whether a print is running: config is written, but Klipper is not restarted. Run the bootstrap again (or with -f) to activate it."
+        echo "$msg"
+        logger -t k2-overrides "$msg"
+    fi
 fi
 
 mkdir -p "$CUSTOM_DIR" "$CACHE_DIR"
@@ -351,6 +368,11 @@ fi
 cp "$SCRIPT_DIR/teardown.sh" "$CACHE_DIR/teardown.sh"
 cp "$SCRIPT_DIR/common.sh" "$CACHE_DIR/common.sh"
 chmod +x "$CACHE_DIR/teardown.sh"
+
+if [ "$PRINT_UNKNOWN" = "1" ]; then
+    logger -t k2-overrides "No restart and no SET_OVERRIDE_ACTIVE: Moonraker never answered, a print may be running"
+    exit 1
+fi
 
 if [ "$CHANGED" = "1" ]; then
     logger -t k2-overrides "Config changed, triggering firmware restart"

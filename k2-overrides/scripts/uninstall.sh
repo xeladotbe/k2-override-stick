@@ -37,8 +37,16 @@ if ! mkdir "$LOCK_DIR" 2>/dev/null; then
 fi
 trap 'rmdir "$LOCK_DIR"; cleanup_run_dir' EXIT
 
-if print_running; then
+PRINT_STATE=0
+print_running || PRINT_STATE=$?
+
+if [ "$PRINT_STATE" = "0" ]; then
     echo "A print is running. Uninstall after it has finished."
+    exit 1
+fi
+
+if [ "$PRINT_STATE" = "2" ]; then
+    echo "Moonraker is not answering, so whether a print is running is unknown. Nothing removed, try again in a minute."
     exit 1
 fi
 

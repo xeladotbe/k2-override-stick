@@ -85,6 +85,16 @@ or `teardown.sh` (no stick).
    `SET_OVERRIDE_ACTIVE VALUE=1` if our macros are loaded: the switch is only
    read by `START_PRINT`, and without it a stick that came back mid-print left
    the next print stock (2026-11-01).
+
+   `print_running` answers in three states: running, none, or *unknown* when
+   Moonraker gives no HTTP answer at all. Unknown used to count as "no print",
+   which is the wrong direction for something that restarts Klipper (review
+   2026-11-13, R-11). The files are still written, since that can't disturb a
+   print, but step 11 skips the restart and `SET_OVERRIDE_ACTIVE`, says so in
+   the log and exits 1: the settings then apply at the next restart. An answer
+   *without* `print_stats` (Klipper not connected) stays "no print", so a
+   config that stops Klipper can still be repaired. `uninstall.sh` refuses on
+   unknown, since it deletes things.
 4. Backup of the pristine `gcode_macro.cfg` as `.k2-overrides/gcode_macro.cfg.orig`
    whenever it has no `_STOCK` section of ours (first run, or after a firmware
    update replaced it); in that case the migrations are replayed from 0 even if
