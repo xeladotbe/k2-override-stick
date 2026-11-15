@@ -288,15 +288,25 @@ idle ─────────────── START_PRINT ─────�
    past the wait, a tick that was still pending does nothing; if the print was
    resumed behind our back, it resets and stops.
 
-   A bed *hotter* than the target by more than 3 °C does not count as "at
-   temperature" either (a print at 70 °C followed by one at 50 °C): it is still
-   falling, so the soak would run on a cooling bed and a mesh measured on it
-   would be cached under a temperature it doesn't belong to. `_K2_TICK` waits
-   for it to come down, at most `_K2.cool_left` (10 min, set by `_K2_BEGIN`),
-   with a line per minute; after that the soak starts anyway with a warning,
-   rather than holding the print indefinitely when the chamber keeps the bed
-   warm (review 2026-11-13, R-06). The dynamic soak caught this through its
-   rate, the fixed one did not.
+   Two conditions have to hold before `soaking` starts, and both are *polled*
+   once a second instead of waited for, so a cancel still lands within a
+   second. They share one budget, `_K2.wait_left` (10 min, set by `_K2_BEGIN`),
+   with a line per minute naming what is missing; when it runs out the soak
+   starts anyway with a warning, rather than holding the print indefinitely:
+
+   - The bed is at the target and not more than 3 °C *above* it. A print at
+     70 °C followed by one at 50 °C satisfied "at temperature" instantly, so
+     the soak ran on a cooling bed and a mesh measured there was cached under a
+     temperature it doesn't belong to, replacing a good one. The dynamic soak
+     caught that through its rate, the fixed one did not (review 2026-11-13,
+     R-06).
+   - For a dynamic soak, the nozzle is within 2 °C of `custom_macro.g28_ext_temp`
+     (140 °C), because it probes and a hotend that is still heating or cooling
+     shifts the probe the way a moving bed does. This used to be an `M109` in
+     the tick, which holds the gcode mutex: a nozzle coming down from 220 °C
+     blocked it for up to a minute and a cancel had to wait that long, against
+     the promise of ~1 s (review 2026-11-13, R-10). The `G28` before the first
+     probe still blocks, but only for its own duration.
    **Dynamic soak** (`soak_stable_mm_per_min` > 0, `_K2.soak_dynamic`). On
    2026-10-07 (`K2_TUNE`, cold start, 70 °C, 5 mm aluminium plate) the middle
    rose ~0.003 mm/min for the first 5 minutes and ~0.01 mm/min 10–20 minutes
