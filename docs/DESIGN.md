@@ -365,6 +365,13 @@ idle, or with the bed above 35 °C (`FORCE=1`). Nozzle off throughout: on
    homes, suggestions; `k2_tune_runs` counts runs, Jinja has no date) and
    `_K2_TUNE_REPORT` prints it (`K2_STATUS` too).
 
+An error inside step 3 or 4 used to leave `state` at `final` for good: `K2_TUNE`
+refused, `K2_TUNE_STOP` said "not running", and only a Klipper restart helped,
+with the bed still hot. `K2_TUNE_STOP` is therefore accepted in `final` too and
+then runs the usual abort. It can only get the gcode mutex once that blocking
+part is over, so in `final` it always means the part died (review 2026-11-13,
+R-05).
+
 Suggestions come in two tiers, rounded up to 0.005. The soak ends when each
 corner against the middle stays within *band* of its final value and the whole bed rises at most
 *rate* (3-minute means, 5 minutes apart): *good* 0.02 / 0.004 mm/min with
@@ -375,7 +382,10 @@ shown as *best*.
   homing repeats and the mesh middle + noise)).
 - Check points: a point off by about the same amount in all 3 rounds (more
   than max(0.015, 4x noise), spread between rounds smaller than the offset) is
-  systematic: reported, left out of the tolerances. 2026-10-07: X5/Y5 read
+  systematic: reported, left out of the tolerances. If that leaves no point at
+  all, the check tolerances are the tier's minimum and the report says so
+  (before, the evaluation failed on `max()` of an empty list and left the run
+  stuck as above). 2026-10-07: X5/Y5 read
   -0.021 in every round against the mesh (mesh probing there -0.165, `PROBE`
   ~-0.19); a whole-bed check over that corner re-measures because of it.
   2026-10-11 at 50 °C: X5/Y5 -0.037, X5/Y175 -0.018, X5/Y345 +0.027 (the
