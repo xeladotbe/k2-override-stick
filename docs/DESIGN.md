@@ -278,6 +278,16 @@ idle ─────────────── START_PRINT ─────�
    during the wait runs `_K2_FINISH_WAIT` early (see hooks). Once the phase is
    past the wait, a tick that was still pending does nothing; if the print was
    resumed behind our back, it resets and stops.
+
+   A bed *hotter* than the target by more than 3 °C does not count as "at
+   temperature" either (a print at 70 °C followed by one at 50 °C): it is still
+   falling, so the soak would run on a cooling bed and a mesh measured on it
+   would be cached under a temperature it doesn't belong to. `_K2_TICK` waits
+   for it to come down, at most `_K2.cool_left` (10 min, set by `_K2_BEGIN`),
+   with a line per minute; after that the soak starts anyway with a warning,
+   rather than holding the print indefinitely when the chamber keeps the bed
+   warm (review 2026-11-13, R-06). The dynamic soak caught this through its
+   rate, the fixed one did not.
    **Dynamic soak** (`soak_stable_mm_per_min` > 0, `_K2.soak_dynamic`). On
    2026-10-07 (`K2_TUNE`, cold start, 70 °C, 5 mm aluminium plate) the middle
    rose ~0.003 mm/min for the first 5 minutes and ~0.01 mm/min 10–20 minutes
@@ -473,7 +483,7 @@ adds Close and shows it). Close runs `_K2_PROMPT_CLOSE` (`action:prompt_end`).
 | `BED_MESH_CALIBRATE_START_PRINT` | renamed (migration 1) | older firmware's app calls it for "Print Calibration" (before `START_PRINT`); sets phase `app_mesh`, runs stock, so `START_PRINT` skips its mesh step. Current firmware uses `G29` instead, detected via `_K2.fresh_mesh` (see Firmware behavior) |
 | `END_PRINT` | renamed (migration 1) | stock `CANCEL_PRINT` calls it first, so it also sees a cancel |
 | `PRINT_PREPARE_CLEAR` | renamed (migration 1) | `END_PRINT_STOCK`, `MOTOR_CANCEL_PRINT` (bypasses `END_PRINT`; probably Creality's cancel on motor/collision errors) and `START_PRINT_STOCK` call it; outside phase `starting` it means the print ended or was aborted → `_K2_RESET`. Safety net for every abort path that skips `END_PRINT`: an armed soak timer would otherwise later run the whole start sequence on an idle printer |
-| `RESUME_EXTERNAL_PROCESS` | renamed (migration 1) | stock `RESUME` (touchscreen, slicer, Moonraker) runs it before `RESUME_BASE`. During the soak wait it runs `_K2_FINISH_WAIT` (start sequence) instead of the stock part, so `RESUME_BASE` then continues a fully started print: resume = skip the rest of the soak. While our print runs unpaused (resume pressed during the start sequence, queued behind it) it skips the stock part, which would otherwise extrude ~80 mm. Otherwise stock. An earlier version raised an error to block the resume: the touchscreen and the slicer then showed a spinner with no controls until the soak ended, since they wait for `RESUME_BASE`'s confirmation (`key602`) |
+| `RESUME_EXTERNAL_PROCESS` | renamed (migration 1) | stock `RESUME` (touchscreen, slicer, Moonraker) runs it before `RESUME_BASE`. During the soak wait it runs `_K2_FINISH_WAIT` (start sequence) instead of the stock part, so `RESUME_BASE` then continues a fully started print: resume = skip the rest of the soak. While our print runs unpaused (resume pressed during the start sequence, queued behind it) it skips the stock part, which would otherwise extrude ~80 mm. Phase `starting` **and still paused** means the start sequence died on an error inside the tick (Klipper only aborts that script, see below): resume then runs `_K2_FINISH_WAIT` again, i.e. one more attempt, and says so. Before, that case fell through to the stock part and `RESUME_BASE`, so the file printed on without the rest of the sequence and without the Z-offset (review 2026-11-13, R-02). A repeated failure leaves the print paused again, so the user can retry or cancel. Otherwise stock. An earlier version raised an error to block the resume: the touchscreen and the slicer then showed a spinner with no controls until the soak ended, since they wait for `RESUME_BASE`'s confirmation (`key602`) |
 | `PRINT_TEMP_SET` | renamed (migration 1) | the app calls it only while preparing a print job, before its own calibration; sets `_K2.job_prepared` so that calibration marks a fresh mesh (see Firmware behavior) |
 
 `CANCEL_PRINT` and `RESUME` can't be hooked themselves: see
