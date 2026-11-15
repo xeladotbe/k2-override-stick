@@ -99,20 +99,50 @@ fi
 
 CHANGED=0
 
-# Our .cfg files on the stick, in include order.
+# Our .cfg files on the stick, in include order. Two kinds are left out, see
+# skipped_cfg_reason: they are not copied, not included and not kept in
+# custom/. Silent here, since this runs several times; warned about once below.
 stick_cfgs() {
     for f in "$STICK_ROOT"/*.cfg; do
-        if [ -f "$f" ]; then
+        if [ -f "$f" ] && [ -z "$(skipped_cfg_reason "$(basename "$f")")" ]; then
             basename "$f"
         fi
     done
 }
 
-# Matches every [include custom/<one of our files>] line in printer.cfg.
+# Why a .cfg on the stick is ignored, empty if it is fine. A second
+# 00_user_config*.cfg is the dangerous one: k2_overrides.cfg includes that
+# pattern (a literal include of a missing file is an error), Klipper reads the
+# matches in sorted order, and "_" sorts after "." -- so a backup named
+# 00_user_config_old.cfg would quietly override the real settings. A name with
+# a space would break the word-split manifest loop and never be retired.
+skipped_cfg_reason() {
+    case "$1" in
+        *" "*) echo "its name contains a space" ;;
+        00_user_config.cfg) ;;
+        00_user_config*.cfg) echo "[include 00_user_config*.cfg] would read it after 00_user_config.cfg and its values would win" ;;
+    esac
+}
+
+for f in "$STICK_ROOT"/*.cfg; do
+    if [ -f "$f" ]; then
+        reason="$(skipped_cfg_reason "$(basename "$f")")"
+        if [ -n "$reason" ]; then
+            msg="WARNING: ignoring $(basename "$f") on the stick: $reason. Rename it to something that is not a .cfg, e.g. 00_user_config_old.txt."
+            echo "$msg"
+            logger -t k2-overrides "$msg"
+        fi
+    fi
+done
+
+
+# Matches every [include custom/<one of our files>] line in printer.cfg. The
+# dot becomes [.] rather than \.: GNU sed and BusyBox sed disagree on how many
+# backslashes a replacement needs, a bracket needs none.
 our_includes_re() {
     inc_re=""
     for inc_name in $(stick_cfgs); do
-        inc_re="${inc_re:+$inc_re|}$(echo "$inc_name" | sed 's/\./\\./g')"
+        inc_re="${inc_re:+$inc_re|}$(echo "$inc_name" | sed 's/\./[.]/g')"
     done
     echo "^[[:space:]]*\\[include custom/($inc_re)\\][[:space:]]*\$"
 }
@@ -231,22 +261,34 @@ if [ ! -f "$STICK_ROOT/00_user_config.cfg" ]; then
     fi
 fi
 
-if sync_cfg_files "$STICK_ROOT" "$CUSTOM_DIR" "Copied"; then
+# Read after 00_user_config.cfg was created above, so a first run sees it too.
+CURRENT_CFGS=$(stick_cfgs)
+
+is_current_cfg() {
+    for cur_name in $CURRENT_CFGS; do
+        if [ "$cur_name" = "$1" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+if echo "$CURRENT_CFGS" | sync_cfg_files "$STICK_ROOT" "$CUSTOM_DIR" "Copied"; then
     CHANGED=1
 fi
 
-# A .cfg that an earlier bootstrap installed but that is gone from the stick
-# (renamed/retired) would otherwise stay included forever, stale macros and
-# all. The manifest lists what we installed, so files someone else put into
-# custom/ are never touched.
+# A .cfg that an earlier bootstrap installed but that is no longer one of ours
+# (gone from the stick, renamed, retired, or now ignored) would otherwise stay
+# included forever, stale macros and all. The manifest lists what we installed,
+# so files someone else put into custom/ are never touched.
 MANIFEST="$CACHE_DIR/installed.list"
 PREVIOUS=$(cat "$MANIFEST" 2>/dev/null || true)
 for name in $PREVIOUS; do
     case "$name" in
         */*) ;;  # hooks/<file>: always retired
-        *) if [ -f "$STICK_ROOT/$name" ]; then continue; fi ;;
+        *) if is_current_cfg "$name"; then continue; fi ;;
     esac
-    pattern="^[[:space:]]*\[include custom/$(echo "$name" | sed 's/\./\\./g')\]"
+    pattern="^[[:space:]]*\[include custom/$(echo "$name" | sed 's/\./[.]/g')\]"
     if grep -q "$pattern" "$PRINTER_CFG" 2>/dev/null; then
         grep -v "$pattern" "$PRINTER_CFG" > "$PRINTER_CFG.tmp3" || true
         mv "$PRINTER_CFG.tmp3" "$PRINTER_CFG"
@@ -260,7 +302,7 @@ for name in $PREVIOUS; do
     fi
 done
 rmdir "$CUSTOM_DIR/hooks" 2>/dev/null || true
-stick_cfgs > "$MANIFEST"
+echo "$CURRENT_CFGS" > "$MANIFEST"
 
 # printer.cfg includes only k2_overrides.cfg, which includes the rest (a
 # wildcard [include custom/*.cfg] would break every SAVE_CONFIG). Includes of

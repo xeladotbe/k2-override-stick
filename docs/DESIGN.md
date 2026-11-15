@@ -109,12 +109,17 @@ or `teardown.sh` (no stick).
    | 1 | `START_PRINT`, `PRINT_PREPARE_CLEAR`, `BED_MESH_CALIBRATE_START_PRINT`, `END_PRINT`, `RESUME_EXTERNAL_PROCESS`, `PRINT_TEMP_SET` |
 
 7. Creates `00_user_config.cfg` on the stick from `00_user_config.cfg.example`
-   if it is missing, then syncs every `*.cfg` from the stick into
-   `config/custom/` (only if the content differs).
+   if it is missing, then syncs the stick's `*.cfg` into `config/custom/` (only
+   if the content differs). Two kinds are warned about and left out: a second
+   `00_user_config*.cfg`, since `k2_overrides.cfg` includes that pattern and
+   Klipper reads the matches sorted, so `00_user_config_old.cfg` (`_` sorts
+   after `.`) quietly won over the real settings; and a name with a space,
+   which the word-split manifest loop below could never retire (review
+   2026-11-13, R-07).
 8. Removes retired files: a manifest (`.k2-overrides/installed.list`) lists
-   what bootstrap installed; a file in it that is gone from the stick loses its
-   copy and its include. Files someone else put into `custom/` are never
-   touched.
+   what bootstrap installed; a file in it that is no longer one of ours (gone
+   from the stick, or now ignored as above) loses its copy and its include.
+   Files someone else put into `custom/` are never touched.
 9. One line `[include custom/k2_overrides.cfg]` in `printer.cfg`, **before**
    the `#*# <---- SAVE_CONFIG ---->` trailer (see facts below). That file
    includes the others in order: `00_user_config.cfg` must be read after

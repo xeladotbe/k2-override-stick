@@ -304,8 +304,15 @@ Your settings go into `k2-overrides/00_user_config.cfg` on the stick. List only
 what you want to change, everything else keeps its default from
 `00_defaults.cfg`. The bootstrap creates the file from
 `00_user_config.cfg.example` if it is missing; that file explains every
-setting and how to write it. To write it yourself, start it with the section
-header and end it with an empty `gcode:`:
+setting and how to write it.
+
+Keep backups of it under a name that doesn't end in `.cfg`, e.g.
+`00_user_config_old.txt`. A second `.cfg` whose name starts with
+`00_user_config` is read after the real one and its values would win, so the
+bootstrap ignores it and says so in the log.
+
+To write it yourself, start it with the section header and end it with an empty
+`gcode:`:
 
 ```
 [gcode_macro USER_CONFIG]

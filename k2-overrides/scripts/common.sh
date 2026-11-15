@@ -73,21 +73,23 @@ wait_klippy_ready() {
     return 1
 }
 
-# Copies every *.cfg from $1 (source dir) into $2 (dest dir) that differs
-# (by content) from what's already there, logging each copy with the $3
-# prefix. Exit status 0 if anything was copied, 1 if nothing changed --
-# use in an `if sync_cfg_files ...; then` check.
+# Copies the file names on stdin (one per line) from $1 (source dir) into $2
+# (dest dir), but only those that differ by content from what's already there,
+# logging each copy with the $3 prefix. The caller passes the names rather than
+# a glob, so files it deliberately ignores stay out (bootstrap: stick_cfgs).
+# Exit status 0 if anything was copied, 1 if nothing changed -- use in an
+# `if ... | sync_cfg_files ...; then` check.
 sync_cfg_files() {
     src_dir="$1"
     dst_dir="$2"
     log_prefix="$3"
     changed=1
 
-    for f in "$src_dir"/*.cfg; do
-        [ -f "$f" ] || continue
-        name=$(basename "$f")
-        if ! cmp -s "$f" "$dst_dir/$name" 2>/dev/null; then
-            cp "$f" "$dst_dir/$name"
+    while read -r name; do
+        [ -n "$name" ] || continue
+        [ -f "$src_dir/$name" ] || continue
+        if ! cmp -s "$src_dir/$name" "$dst_dir/$name" 2>/dev/null; then
+            cp "$src_dir/$name" "$dst_dir/$name"
             logger -t k2-overrides "$log_prefix: $name"
             changed=0
         fi

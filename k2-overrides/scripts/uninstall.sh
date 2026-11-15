@@ -66,7 +66,7 @@ fi
 
 # 4. Our includes and files in custom/ (only what the manifest lists).
 for name in $(cat "$CACHE_DIR/installed.list" 2>/dev/null); do
-    pattern="^[[:space:]]*\[include custom/$(echo "$name" | sed 's/\./\\./g')\]"
+    pattern="^[[:space:]]*\[include custom/$(echo "$name" | sed 's/\./[.]/g')\]"
     grep -v "$pattern" "$PRINTER_CFG" > "$PRINTER_CFG.tmp" || true
     mv "$PRINTER_CFG.tmp" "$PRINTER_CFG"
     rm -f "$CUSTOM_DIR/$name"
