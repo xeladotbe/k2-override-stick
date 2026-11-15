@@ -479,7 +479,7 @@ adds Close and shows it). Close runs `_K2_PROMPT_CLOSE` (`action:prompt_end`).
 | Hook | How | Why there |
 |---|---|---|
 | `START_PRINT` | section renamed (migration 1) | entry point |
-| `BED_MESH_CALIBRATE` | `rename_existing` (real built-in) | follows the plan only in phase `starting`; a manual `G29` or the app's calibration always calibrates normally |
+| `BED_MESH_CALIBRATE` | `rename_existing` (real built-in) | follows the plan only in phase `starting` **and** while `print_stats` says a print is running or paused; a manual `G29` or the app's calibration always calibrates normally, and so does leveling from the display after a print died with the phase left behind (review 2026-11-13, R-03) |
 | `BED_MESH_CALIBRATE_START_PRINT` | renamed (migration 1) | older firmware's app calls it for "Print Calibration" (before `START_PRINT`); sets phase `app_mesh`, runs stock, so `START_PRINT` skips its mesh step. Current firmware uses `G29` instead, detected via `_K2.fresh_mesh` (see Firmware behavior) |
 | `END_PRINT` | renamed (migration 1) | stock `CANCEL_PRINT` calls it first, so it also sees a cancel |
 | `PRINT_PREPARE_CLEAR` | renamed (migration 1) | `END_PRINT_STOCK`, `MOTOR_CANCEL_PRINT` (bypasses `END_PRINT`; probably Creality's cancel on motor/collision errors) and `START_PRINT_STOCK` call it; outside phase `starting` it means the print ended or was aborted → `_K2_RESET`. Safety net for every abort path that skips `END_PRINT`: an armed soak timer would otherwise later run the whole start sequence on an idle printer |
@@ -488,6 +488,17 @@ adds Close and shows it). Close runs `_K2_PROMPT_CLOSE` (`action:prompt_end`).
 
 `CANCEL_PRINT` and `RESUME` can't be hooked themselves: see
 [`rename_existing` and renamed sections](#rename_existing-and-renamed-sections).
+
+`[virtual_sdcard] on_error_gcode` is empty on this printer (queried), so after
+an error in a print Klipper calls neither `CANCEL_PRINT` nor `END_PRINT`, and
+`PRINT_PREPARE_CLEAR` deliberately doesn't reset in phase `starting`. The phase
+could therefore stay at `heating`, `soaking`, `starting` or `printing` with no
+print running, and `K2_TUNE`, `K2_SCREWS_TILT` and `APPLY_MATERIAL_Z_OFFSET`
+refused until a Klipper restart. Each of them now compares the phase with
+`print_stats` and, when it is left over, calls `_K2_PHASE_SYNC` (`00_state.cfg`)
+instead of refusing: one warning, then `_K2_RESET`. They test the condition
+themselves because a macro's own render can't see a reset it triggers (review
+2026-11-13, R-03).
 
 ## Settings resolution
 
