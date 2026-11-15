@@ -166,7 +166,11 @@ idle ─────────────── START_PRINT ─────�
      mesh step, no soak.
    - `adaptive`: small print with `small_print_adaptive_mesh: 1`; calibration
      with `GCODE_FILE=` around the print, no cache, no soak.
-   - `load`: the profile exists (a small print then skips the soak). Unless
+   - `load`: the profile exists and is still good (a small print then skips the
+     soak; before, a profile that merely existed was enough, so a small print
+     whose mesh was worn or marked unstable measured a full mesh on a bed that
+     never soaked, got marked unstable again and measured again on the next
+     small print, review 2026-11-13, R-04). Unless
      the print is small or `mesh_check_tolerance` is 0, `mesh_check` is set:
      `_K2_MESH_CHECK` (`20_bed_mesh.cfg`) probes up to 9 grid points of the
      cached profile (3x3: first, middle and last grid column/row inside the
