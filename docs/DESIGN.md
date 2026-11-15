@@ -81,7 +81,7 @@ or `teardown.sh` (no stick).
    `/etc/rc.d` has no link yet.
 3. Waits until Klipper has left its startup phase, also when it is in `error`
    (so a broken config can still be repaired). Then stops if a print runs or
-   is paused (the restart in step 10 would kill it), after only
+   is paused (the restart in step 11 would kill it), after only
    `SET_OVERRIDE_ACTIVE VALUE=1` if our macros are loaded: the switch is only
    read by `START_PRINT`, and without it a stick that came back mid-print left
    the next print stock (2026-11-01).
@@ -89,7 +89,16 @@ or `teardown.sh` (no stick).
    whenever it has no `_STOCK` section of ours (first run, or after a firmware
    update replaced it); in that case the migrations are replayed from 0 even if
    the version file survived.
-5. **Migrations**: numbered, ordered renames of stock macro sections in
+5. Checks that `gcode_macro.cfg` has a section for each of the six macros we
+   redefine, either under its own name or already as `X_STOCK`. If one is
+   missing, nothing is written, the run ends with an error, and an include of
+   our config already in `printer.cfg` is removed and Klipper restarted, so the
+   printer runs stock instead of merging our macros into the stock ones of the
+   same name. Without the check, `rename_stock_macro` returned 1 and `set -e`
+   ended the run inside the migration: some sections renamed, no version file
+   and no include, i.e. a printer without `START_PRINT`, and every later
+   bootstrap stopped at the same place (review 2026-11-13, R-01).
+6. **Migrations**: numbered, ordered renames of stock macro sections in
    `gcode_macro.cfg` (`[gcode_macro X]` → `[gcode_macro X_STOCK]`), tracked in
    `.k2-overrides/version`. A number, once shipped, is never redefined; a
    correction gets a new number (a stick already at that version would skip a
@@ -99,23 +108,23 @@ or `teardown.sh` (no stick).
    |---|---|
    | 1 | `START_PRINT`, `PRINT_PREPARE_CLEAR`, `BED_MESH_CALIBRATE_START_PRINT`, `END_PRINT`, `RESUME_EXTERNAL_PROCESS`, `PRINT_TEMP_SET` |
 
-6. Creates `00_user_config.cfg` on the stick from `00_user_config.cfg.example`
+7. Creates `00_user_config.cfg` on the stick from `00_user_config.cfg.example`
    if it is missing, then syncs every `*.cfg` from the stick into
    `config/custom/` (only if the content differs).
-7. Removes retired files: a manifest (`.k2-overrides/installed.list`) lists
+8. Removes retired files: a manifest (`.k2-overrides/installed.list`) lists
    what bootstrap installed; a file in it that is gone from the stick loses its
    copy and its include. Files someone else put into `custom/` are never
    touched.
-8. One line `[include custom/k2_overrides.cfg]` in `printer.cfg`, **before**
+9. One line `[include custom/k2_overrides.cfg]` in `printer.cfg`, **before**
    the `#*# <---- SAVE_CONFIG ---->` trailer (see facts below). That file
    includes the others in order: `00_user_config.cfg` must be read after
    `00_defaults.cfg` (see Settings resolution). Includes of our other files
    (one per file up to v0.2.0) are removed. The simulator loads the files
    through `k2_overrides.cfg` and checks that it lists every `.cfg` once, in
    file name order.
-9. Caches `teardown.sh` + `common.sh` on the printer (the stick is gone when
+10. Caches `teardown.sh` + `common.sh` on the printer (the stick is gone when
    they are needed).
-10. `FIRMWARE_RESTART` via Moonraker if anything changed, waits for `ready`
+11. `FIRMWARE_RESTART` via Moonraker if anything changed, waits for `ready`
    (logs Klipper's `state_message` if it doesn't come back), then
    `SET_OVERRIDE_ACTIVE VALUE=1`.
 

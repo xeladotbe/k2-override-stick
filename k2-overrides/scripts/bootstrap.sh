@@ -99,6 +99,55 @@ fi
 
 CHANGED=0
 
+# Our .cfg files on the stick, in include order.
+stick_cfgs() {
+    for f in "$STICK_ROOT"/*.cfg; do
+        if [ -f "$f" ]; then
+            basename "$f"
+        fi
+    done
+}
+
+# Matches every [include custom/<one of our files>] line in printer.cfg.
+our_includes_re() {
+    inc_re=""
+    for inc_name in $(stick_cfgs); do
+        inc_re="${inc_re:+$inc_re|}$(echo "$inc_name" | sed 's/\./\\./g')"
+    done
+    echo "^[[:space:]]*\\[include custom/($inc_re)\\][[:space:]]*\$"
+}
+
+# The stock macros our custom/*.cfg redefine have to exist, as themselves or
+# already renamed (migration_1 lists the same names). On firmware that lacks
+# one, rename_stock_macro returns 1 and set -e ends the run in the middle of
+# migration_1: some macros renamed, no version file, no include -- a printer
+# without START_PRINT, and every later bootstrap stops at the same place. So
+# check before writing anything, and pull our include if it is already there:
+# our macros would otherwise merge into the stock ones of the same name.
+HOOKED_MACROS="START_PRINT PRINT_PREPARE_CLEAR BED_MESH_CALIBRATE_START_PRINT END_PRINT RESUME_EXTERNAL_PROCESS PRINT_TEMP_SET"
+MISSING=""
+for name in $HOOKED_MACROS; do
+    if ! grep -qE "^\[gcode_macro ${name}(_STOCK)?\]" "$GCODE_MACRO_CFG" 2>/dev/null; then
+        MISSING="${MISSING:+$MISSING, }$name"
+    fi
+done
+
+if [ -n "$MISSING" ]; then
+    msg="ERROR: $GCODE_MACRO_CFG has no section for: $MISSING. Nothing was changed, the printer runs stock. Unsupported firmware, or a gcode_macro.cfg that was replaced?"
+    echo "$msg"
+    logger -t k2-overrides "$msg"
+
+    INC_RE=$(our_includes_re)
+    if grep -qE "$INC_RE" "$PRINTER_CFG" 2>/dev/null; then
+        grep -vE "$INC_RE" "$PRINTER_CFG" > "$PRINTER_CFG.tmp5"
+        mv "$PRINTER_CFG.tmp5" "$PRINTER_CFG"
+        logger -t k2-overrides "Removed the include of our config, restarting Klipper"
+        http_post "/printer/firmware_restart" "{}"
+    fi
+
+    exit 1
+fi
+
 # Klipper merges same-named [gcode_macro X] sections across included files
 # key-by-key instead of layering them (confirmed on real hardware
 # 2026-09-27) -- rename_existing can't be used from a separately-included
@@ -155,7 +204,8 @@ migration_1() {
     # Free up the stock macros our custom/*.cfg redefine (see rename_stock_macro).
     # CANCEL_PRINT and RESUME can't be renamed (they carry their own
     # rename_existing), so END_PRINT and RESUME_EXTERNAL_PROCESS, which they
-    # call, are hooked instead (docs/DESIGN.md).
+    # call, are hooked instead (docs/DESIGN.md). Same names as HOOKED_MACROS;
+    # a shipped migration is never redefined, so keep this list as it is.
     rename_stock_macro START_PRINT "$GCODE_MACRO_CFG"
     rename_stock_macro PRINT_PREPARE_CLEAR "$GCODE_MACRO_CFG"
     rename_stock_macro BED_MESH_CALIBRATE_START_PRINT "$GCODE_MACRO_CFG"
@@ -184,16 +234,6 @@ fi
 if sync_cfg_files "$STICK_ROOT" "$CUSTOM_DIR" "Copied"; then
     CHANGED=1
 fi
-
-# Our .cfg files on the stick, in include order. The manifest can still list
-# hooks/<file> from the removed hook feature; those are retired below.
-stick_cfgs() {
-    for f in "$STICK_ROOT"/*.cfg; do
-        if [ -f "$f" ]; then
-            basename "$f"
-        fi
-    done
-}
 
 # A .cfg that an earlier bootstrap installed but that is gone from the stick
 # (renamed/retired) would otherwise stay included forever, stale macros and
@@ -226,13 +266,9 @@ stick_cfgs > "$MANIFEST"
 # wildcard [include custom/*.cfg] would break every SAVE_CONFIG). Includes of
 # our other files (one per file in older versions) are dropped. If anything differs,
 # the block is rewritten in front of the SAVE_CONFIG trailer (nothing may follow it).
-OURS_RE=""
-for name in $(stick_cfgs); do
-    OURS_RE="${OURS_RE:+$OURS_RE|}$(echo "$name" | sed 's/\./\\./g')"
-done
 WANTED="[include custom/k2_overrides.cfg]
 "
-OURS_RE="^[[:space:]]*\\[include custom/($OURS_RE)\\][[:space:]]*\$"
+OURS_RE=$(our_includes_re)
 HAVE=$(grep -E "$OURS_RE" "$PRINTER_CFG" 2>/dev/null | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' || true)
 
 if [ "$HAVE" != "$(printf '%s' "$WANTED")" ]; then
