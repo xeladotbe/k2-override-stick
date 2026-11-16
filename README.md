@@ -105,7 +105,6 @@ flowchart TD
     meshq -->|"none yet, used in 20 prints,<br/>or last measured on a moving bed"| full
 
     check -->|matches| load["Load the cached mesh"]
-    check -->|"only shifted"| shifted["Load it, shift the Z-offset"]
     check -->|"bed changed"| full["Measure the full mesh,<br/>then probe the middle again"]
 
     full --> moving{"Bed moved<br/>while measuring?"}
@@ -117,7 +116,6 @@ flowchart TD
     appmesh --> z
     adaptive --> z
     load --> z
-    shifted --> z
     drift --> z
 
     z["Z-offset for material and plate<br/>(the filament profile may set its own)"] --> print(["Stock START_PRINT, the print runs"])
@@ -369,18 +367,16 @@ A plate that isn't listed uses the material's `'default'`, otherwise the outer
 | Setting | Default | Meaning |
 |---|---|---|
 | `z_offset` | `0` | Z-offset in mm, applied at the end of the start sequence. Larger = nozzle farther from the bed. |
-| `min_z_offset` | `-0.05` | Lowest Z-offset ever applied: `K2_FILAMENT_Z_OFFSET` clamps to it, and the mesh check measures again instead of shifting the Z-offset below it. |
+| `min_z_offset` | `-0.05` | Lowest Z-offset ever applied: `K2_FILAMENT_Z_OFFSET` clamps to it, and the drift correction of a fresh mesh stops there. |
 | `soak_minutes` | `5` (ABS `10`) | Minutes to wait once the bed has reached its temperature. `0` = no soak. Always the maximum: `tune_profile` and `soak_stable_mm_per_min` can only shorten it. |
 | `small_print_coverage_pct` | `0` (PLA `15`) | A print is "small" if its objects cover less than this percentage of the bed. `0` = never small. Small prints skip the soak. |
 | `small_print_adaptive_mesh` | `1` | For small prints: `1` = probe only around the print (no cache); `0` = use the cached full-bed mesh (the soak is only skipped if that mesh already exists). |
-| `mesh_check_tolerance` | `0.025` | Before a cached mesh is used, up to 9 of its points over the print area (3x3) are probed. If they differ by more than this many mm on average, or one point by more than `mesh_check_point_factor` times that, the mesh is not used as it is (see the next two). `0` = load without checking. |
-| `mesh_check_point_factor` | `1` | How far a single probed point may be off, as a multiple of `mesh_check_tolerance`. `1` = no point beyond the tolerance; `1.5` or `2` = more lenient. |
-| `mesh_check_shape_tolerance` | `0.025` | If the probed points are all shifted by about the same amount (each within this many mm of their mean; with `tune_profile` `'best'` of the bed middle itself, which re-measures more often but leaves neither gaps nor squish), the bed only moved: the cached mesh is used and the shift added to the Z-offset for this print. The shift is what the bed middle shows, where Z is homed; the check always probes it. Never if the Z-offset would end up below `min_z_offset`, and not for shifts over 4x `mesh_check_tolerance`: then the bed is measured again and the cache replaced. `0` = always measure again. |
+| `mesh_check_tolerance` | `0.025` | Before a cached mesh is used, up to 9 of its points over the print area (3x3) are probed. If they differ by more than this many mm on average, or any single point by more than it, the bed is measured again and the cache replaced (about 4.5 minutes). `0` = load without checking. |
 | `mesh_max_uses` | `20` | After a cached mesh was used in this many prints, it is measured again (the check only probes a few points). `0` = never. |
 | `mesh_stable_tolerance` | `0.03` | Checks a freshly measured mesh for bed movement: its middle (measured first, right after Z was homed there) must read about 0, and the middle probed again after the mesh (about 4.5 minutes later) must not differ by more than this many mm. Otherwise the bed was still rising or sinking (not soaked through, or the soak was skipped with resume): the print goes ahead with that mesh, but it isn't cached, so the next print measures again. No second mesh. `0` = no check. |
 | `mesh_drift_correction` | `0.5` | How much of the movement measured while the mesh was probed (middle before vs. after) goes onto this print's Z-offset. The middle is probed first and printed last, and the bed keeps rising a little until the first layer, so without it the middle ends up slightly too close. `0.5` = half, `0` = off. Only from 0.005 mm of movement (below that it's probe noise and less than one Z step), only for this print, at most `mesh_stable_tolerance`, never below `min_z_offset`. |
 | `soak_stable_mm_per_min` | `0` | Dynamic soak: `> 0` probes the middle of the bed every minute of the soak and the four corners every 5 minutes, and starts the print as soon as the middle rises and each corner moves against the middle at most this many mm per minute (after 7 minutes at the earliest, so only with `soak_minutes` above 7; after `soak_minutes` at the latest), so a bed that settles quickly doesn't wait for nothing. Some beds look quiet for the first minutes and deform later (seen on a K2 Plus with a 5 mm aluminium plate at 70 °C); there it would stop too early. `K2_TUNE` checks your bed for that and suggests `0` if it happens, `tune_profile` uses the suggestion. `0` = always the full `soak_minutes`. |
-| `tune_profile` | `'good'` | `'off'`, `'good'` or `'best'`: take the `mesh_*` tolerances and `soak_stable_mm_per_min` from the [`K2_TUNE`](#tuning-the-settings-for-your-printer) result for the print's bed temperature. Its soak is only used if it is shorter than `soak_minutes`; a longer one is shown as a suggestion in the `Plan:` line and in `K2_STATUS` (e.g. `soak 5.0 min (config, K2_TUNE good 50C suggests 15)`), raise `soak_minutes` yourself if you want it. One value for all prints (not per material). A `mesh_check_tolerance`, `mesh_check_shape_tolerance` or `mesh_stable_tolerance` you set to `0` stays off. No result for that temperature: the values above, and the `Plan:` line and `K2_STATUS` tell you to run `K2_TUNE` for it. `K2_TUNE_PROFILE=` on the `START_PRINT` line picks it per print, and other `K2_*` there still win. |
+| `tune_profile` | `'good'` | `'off'`, `'good'` or `'best'`: take the `mesh_*` tolerances and `soak_stable_mm_per_min` from the [`K2_TUNE`](#tuning-the-settings-for-your-printer) result for the print's bed temperature. Its soak is only used if it is shorter than `soak_minutes`; a longer one is shown as a suggestion in the `Plan:` line and in `K2_STATUS` (e.g. `soak 5.0 min (config, K2_TUNE good 50C suggests 15)`), raise `soak_minutes` yourself if you want it. One value for all prints (not per material). A `mesh_check_tolerance` or `mesh_stable_tolerance` you set to `0` stays off. No result for that temperature: the values above, and the `Plan:` line and `K2_STATUS` tell you to run `K2_TUNE` for it. `K2_TUNE_PROFILE=` on the `START_PRINT` line picks it per print, and other `K2_*` there still win. |
 
 After editing, copy the file to the stick and apply it (see
 [Updating](#updating-and-firmware-updates)).
@@ -529,8 +525,8 @@ K2_FILAMENT_Z_OFFSET Z=0.045
 ```
 
 It runs after the start sequence, right before the first layer, and replaces
-the material's Z-offset for this print. A shift found by the mesh check is
-added on top (a plain `SET_GCODE_OFFSET Z=` would drop it). Small negative
+the material's Z-offset for this print. The drift correction of a freshly measured mesh
+(`mesh_drift_correction`) is added on top (a plain `SET_GCODE_OFFSET Z=` would drop it). Small negative
 values are fine (e.g. `Z=-0.005`); if the result would be below `min_z_offset`
 (default -0.05), it is set to that instead. Profiles without
 the line use the material's value. Find the value with a Z-offset test print
@@ -560,7 +556,7 @@ Type these in the Fluidd/Mainsail console:
 | `K2_CLEAR_MESH_CACHE FILTER=70c` | Deletes only the cached meshes whose name contains `70c`. |
 | `K2_TUNE BED_TEMP=70` | Measures how *your* bed behaves at that temperature and suggests settings for it (see [Tuning the settings for your printer](#tuning-the-settings-for-your-printer)). |
 | `K2_TUNE_STOP` | Cancels a running `K2_TUNE` (not during its final mesh). |
-| `K2_FILAMENT_Z_OFFSET Z=0.045` | Sets this print's Z-offset, keeping a mesh-check shift (meant for the filament profile's start G-code, see [Per-filament Z-offset](#per-filament-z-offset)). |
+| `K2_FILAMENT_Z_OFFSET Z=0.045` | Sets this print's Z-offset, keeping a fresh mesh's drift correction (meant for the filament profile's start G-code, see [Per-filament Z-offset](#per-filament-z-offset)). |
 | `K2_SCREWS_TILT` | Tells you how far to turn each bed leveling screw (see [Leveling the bed screws](#leveling-the-bed-screws)). |
 
 ## Leveling the bed screws

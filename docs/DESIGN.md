@@ -88,8 +88,7 @@ or `teardown.sh` (no stick).
 
    `print_running` answers in three states: running, none, or *unknown* when
    Moonraker gives no HTTP answer at all. Unknown used to count as "no print",
-   which is the wrong direction for something that restarts Klipper (review
-   2026-11-13, R-11). The files are still written, since that can't disturb a
+   which is the wrong direction for something that restarts Klipper (2026-11-13). The files are still written, since that can't disturb a
    print, but step 11 skips the restart and `SET_OVERRIDE_ACTIVE`, says so in
    the log and exits 1: the settings then apply at the next restart. An answer
    *without* `print_stats` (Klipper not connected) stays "no print", so a
@@ -107,7 +106,7 @@ or `teardown.sh` (no stick).
    same name. Without the check, `rename_stock_macro` returned 1 and `set -e`
    ended the run inside the migration: some sections renamed, no version file
    and no include, i.e. a printer without `START_PRINT`, and every later
-   bootstrap stopped at the same place (review 2026-11-13, R-01).
+   bootstrap stopped at the same place (2026-11-13).
 6. **Migrations**: numbered, ordered renames of stock macro sections in
    `gcode_macro.cfg` (`[gcode_macro X]` → `[gcode_macro X_STOCK]`), tracked in
    `.k2-overrides/version`. A number, once shipped, is never redefined; a
@@ -124,8 +123,7 @@ or `teardown.sh` (no stick).
    `00_user_config*.cfg`, since `k2_overrides.cfg` includes that pattern and
    Klipper reads the matches sorted, so `00_user_config_old.cfg` (`_` sorts
    after `.`) quietly won over the real settings; and a name with a space,
-   which the word-split manifest loop below could never retire (review
-   2026-11-13, R-07).
+   which the word-split manifest loop below could never retire (2026-11-13).
 8. Removes retired files: a manifest (`.k2-overrides/installed.list`) lists
    what bootstrap installed; a file in it that is no longer one of ours (gone
    from the stick, or now ignored as above) loses its copy and its include.
@@ -185,7 +183,7 @@ idle ─────────────── START_PRINT ─────�
      soak; before, a profile that merely existed was enough, so a small print
      whose mesh was worn or marked unstable measured a full mesh on a bed that
      never soaked, got marked unstable again and measured again on the next
-     small print, review 2026-11-13, R-04). Unless
+     small print). Unless
      the print is small or `mesh_check_tolerance` is 0, `mesh_check` is set:
      `_K2_MESH_CHECK` (`20_bed_mesh.cfg`) probes up to 9 grid points of the
      cached profile (3x3: first, middle and last grid column/row inside the
@@ -196,30 +194,40 @@ idle ─────────────── START_PRINT ─────�
      `_K2_MESH_CHECK_POINT` reads `probe.last_z_result` (a separate macro, so it
      is rendered after the probe ran) and appends `[x, y, probed - cached,
      middle]` to `_K2.mesh_check`; the grid point at the bed middle, where Z is
-     homed, is always probed too. `_K2_MESH_CHECK_DONE` loads the profile if the mean is
-     within the tolerance and no point is off by more than
-     `mesh_check_point_factor` (default 1) times that. If the points are only
-     shifted (each within `mesh_check_shape_tolerance`, 0.025, of their mean;
-     with `tune_profile` best of the middle) it loads the profile too and
-     stores the middle's difference as `_K2.mesh_shift`, which
-     `_K2_APPLY_Z_OFFSET` adds to the Z-offset; never if the Z-offset would end
-     up below `min_z_offset` (the nozzle must not dig into the plate; default
-     -0.05 still leaves a 0.2 mm first layer at 0.15 mm, and filaments like
-     eSUN PETG need slightly negative values, 2026-10-04) or the shift exceeds 4x
-     the tolerance. Otherwise it calibrates with `PROFILE=` (replacing the
-     cache). Each print that uses a cached profile counts in save_variables
-     (`k2_mesh_uses`); after `mesh_max_uses` (20) `_K2_PLAN` plans `calibrate`
-     instead, because 9 points miss local changes. Why the middle and not the
-     mean (2026-10-11, PLA 50 °C): middle +0.000, the other points -0.019 to
-     -0.034, mean -0.022 within the shape tolerance, so the old check shifted
-     the Z-offset by -0.022: edges perfect, the middle squished. Points that
-     moved while the middle didn't are a shape change (the cached mesh was
-     measured while the bed still rose: middle first, edges last, so its
-     edges read high), and Z is homed at the middle. Judging the shape against
-     the middle as well would re-measure that case, but even a fresh mesh
-     reads its middle 0.003-0.016 below a later probe (K2_TUNE rounds), so it
-     would re-measure often; hence only with `best`, while `good` accepts edges
-     up to the tolerance off (slight gaps rather than squish). Shift case on hardware
+     homed, is always probed too. `_K2_MESH_CHECK_DONE` loads the profile if the mean
+     and every single point are within `mesh_check_tolerance`. Otherwise it
+     calibrates with `PROFILE=` (replacing the cache). Each print that uses a
+     cached profile counts in save_variables (`k2_mesh_uses`); after
+     `mesh_max_uses` (20) `_K2_PLAN` plans `calibrate` instead, because 9
+     points miss local changes.
+
+     **No Z-offset shift, one tolerance** (2026-11-16). Until then a mesh that
+     was off but "only shifted" was loaded anyway and the shift put on the
+     Z-offset (`mesh_check_shape_tolerance`), and a single point could be
+     allowed more than the mean (`mesh_check_point_factor`). Both are gone.
+     The shift went through three rules, each with real prints:
+
+     - *Mean* (until 2026-10-11). PLA 50 °C, middle +0.000, the other points
+       −0.019 to −0.034: shifted by the mean −0.022, edges perfect, middle
+       squished. Points that moved while the middle didn't are a shape change
+       (the cached mesh was measured while the bed still rose: middle first,
+       edges last, so its edges read high), not a shift.
+     - *Middle* (to 2026-11-15), since Z is homed there. The same data shifted
+       0 and loaded the mesh, edges up to 0.034 too far: gaps on 2026-10-12.
+       On 2026-11-15 (all nine points +0.000 to +0.038) the middle shifted
+       +0.025 and the +0.000 point printed 0.025 too far: gaps again.
+     - *Smallest difference* (tried 2026-11-15, never released). No point
+       ends up too far, but everything up to the spread too close, and one low
+       probe pulls the whole print down.
+
+     One number cannot correct a change of shape, and since Z is homed again
+     right before the check (step 5) the bed's rise during the
+     soak, which was most of what the shift corrected, no longer reaches the
+     check: on 2026-11-13 it read "shifted +0.092" for a bed that had only
+     risen while soaking. What is left is shape, and that is measured again
+     (~4.5 min). Not covered: a print without a soak (`soak_minutes` 0) keeps
+     the app's Z from before the bed heated; a rise since then now re-measures
+     instead of shifting. Homing there too is the open follow-up. Shift case on hardware
      (2026-10-03): the 5-point check said -0.039, the full mesh measured right
      after was -0.037 lower over the print area with the same shape (spread of
      the difference 0.023), between sessions the reference moved by +0.05 and
@@ -233,7 +241,8 @@ idle ─────────────── START_PRINT ─────�
      much as the check. The check runs where the stock flow would calibrate
      (after homing and nozzle clean), so probe and cache share a reference.
      Every check is appended to save_variables `k2_mesh_checks` (last 10:
-     file, profile, mean, max, shape, result) for `K2_STATUS`, because the
+     file, profile, mean, max, spread, result; entries from before 2026-11-15
+     hold the old shape there, and may read `shift`) for `K2_STATUS`, because the
      console buffer is gone within minutes on this firmware.
    - `calibrate`: no profile yet; calibrated with `PROFILE=<name>`.
 
@@ -278,7 +287,7 @@ idle ─────────────── START_PRINT ─────�
    one second *after* the previous one finished: a soak minute measured 63 s on
    hardware, 85 s with a corner probe round, so a 15-minute soak ran about 16.2
    and the mm/min rates were computed against minutes that were too long
-   (review 2026-11-13, R-09). `_K2.soak_minute` holds the next minute still to
+   (2026-11-13). `_K2.soak_minute` holds the next minute still to
    report or probe, so a minute whose boundary passed during a long tick is
    handled once and never twice. `_K2_SOAK_EVAL` ends the soak early by setting
    `soak_end` to 0; `soak_left` is kept up to date for the console only.
@@ -298,14 +307,13 @@ idle ─────────────── START_PRINT ─────�
      70 °C followed by one at 50 °C satisfied "at temperature" instantly, so
      the soak ran on a cooling bed and a mesh measured there was cached under a
      temperature it doesn't belong to, replacing a good one. The dynamic soak
-     caught that through its rate, the fixed one did not (review 2026-11-13,
-     R-06).
+     caught that through its rate, the fixed one did not (2026-11-13).
    - For a dynamic soak, the nozzle is within 2 °C of `custom_macro.g28_ext_temp`
      (140 °C), because it probes and a hotend that is still heating or cooling
      shifts the probe the way a moving bed does. This used to be an `M109` in
      the tick, which holds the gcode mutex: a nozzle coming down from 220 °C
      blocked it for up to a minute and a cancel had to wait that long, against
-     the promise of ~1 s (review 2026-11-13, R-10). The `G28` before the first
+     the promise of ~1 s (2026-11-13). The `G28` before the first
      probe still blocks, but only for its own duration.
    **Dynamic soak** (`soak_stable_mm_per_min` > 0, `_K2.soak_dynamic`). On
    2026-10-07 (`K2_TUNE`, cold start, 70 °C, 5 mm aluminium plate) the middle
@@ -330,8 +338,12 @@ idle ─────────────── START_PRINT ─────�
    minutes 5 earlier, and each corner against the middle between the last
    two corner rounds (the largest of the 4 counts; the console shows their
    mean as the dome). Both at most `soak_stable_mm_per_min` per minute
-   sets `soak_left` 0 (the tick has already decremented it, so the next tick
-   finishes). Earliest end: minute 7. The dome was added on 2026-10-12: a
+   ends the soak (`soak_end` 0). Earliest end: minute 7.
+
+   Considered and not built (2026-11-16): ending the soak at once when the
+   four corners already match the shape `K2_TUNE` measured on the settled
+   bed. It would judge the shape only, not the rise of the middle, and at
+   minute 0 there is no rise to judge. The dome was added on 2026-10-12: a
    bed that had cooled to 37 °C after a print and was heated back to 50 °C
    within a minute had a quiet middle (0.0018 mm/min) at minute 7, but the
    cached-mesh check right after found the edges +0.03 to +0.09 higher than
@@ -356,7 +368,7 @@ idle ─────────────── START_PRINT ─────�
    (`PRINT_PREPARED`), so Z would still be the one homed before the soak:
    everything the bed rose while soaking showed up in the mesh check as a
    shift, and a fresh mesh's middle read that rise instead of ~0, so
-   `_K2_MESH_VERIFY` discarded it (review 2026-11-13, S-01; 2026-11-13 PLA
+   `_K2_MESH_VERIFY` discarded it (2026-11-13 PLA
    50C: shifted +0.092). After a soak with `prepare` 1, `_K2_CONTINUE`
    therefore waits for the nozzle at `g28_ext_temp` and runs
    `NEXT_HOMEZ_NACCU` + `G28 Z` itself (Creality's precise homing, ~18 s). No
@@ -379,8 +391,7 @@ idle ─────────────── START_PRINT ─────�
    `idle_timeout`, phase `idle`, empty plan, and sets a non-zero Z-offset back
    to 0, naming it on the console: it belonged to that print. Stock
    `START_PRINT` zeroed it at the *next* print, so until then it stayed on, was
-   visible in the UI and applied to manual moves and to `K2_SCREWS_TILT`,
-   review 2026-11-13, R-16), then the stock macro. Nothing else runs here on
+   visible in the UI and applied to manual moves and to `K2_SCREWS_TILT`), then the stock macro. Nothing else runs here on
    purpose: see "Firmware behavior" (MCU shutdowns at the end of a print).
 
 ## K2_TUNE
@@ -389,7 +400,7 @@ idle ─────────────── START_PRINT ─────�
 idle, with the bed above 35 °C (`FORCE=1`), or with `BED_TEMP` below
 `default_bed_temp`: the plan looks a result up under
 `max(BED_TEMP, default_bed_temp)`, so a cooler one would never be found and the
-hour would be wasted (review 2026-11-13, R-13). Nozzle off throughout: on
+hour would be wasted (2026-11-13). Nozzle off throughout: on
 2026-10-06 the nozzle temperature (49 vs 140 °C) shifted all points by
 0.036 but didn't change the dome, and a cold nozzle can't ooze onto the probe.
 
@@ -401,8 +412,7 @@ hour would be wasted (review 2026-11-13, R-13). Nozzle off throughout: on
    (`toolhead.estimated_print_time` when the curve began), not 60 s after the
    last round finished, so minute *n* really is *n* minutes in: the probes
    themselves took ~3 s, a corner round ~15 s, which the suggested soak times
-   and the mm/min rates would otherwise carry as an error (review 2026-11-13,
-   R-09, same cause as the soak above). `_K2_TUNE_EVAL`: settled when each corner against the middle
+   and the mm/min rates would otherwise carry as an error (same cause as the soak above). `_K2_TUNE_EVAL`: settled when each corner against the middle
    (their mean is the dome) changed at most 0.01 over each of the last two
    corner rounds (per corner since 2026-10-12, for saddle-shaped beds) and the
    whole bed rises at most 0.0025 mm/min (3-minute means of the middle, 5
@@ -424,8 +434,7 @@ An error inside step 3 or 4 used to leave `state` at `final` for good: `K2_TUNE`
 refused, `K2_TUNE_STOP` said "not running", and only a Klipper restart helped,
 with the bed still hot. `K2_TUNE_STOP` is therefore accepted in `final` too and
 then runs the usual abort. It can only get the gcode mutex once that blocking
-part is over, so in `final` it always means the part died (review 2026-11-13,
-R-05).
+part is over, so in `final` it always means the part died (2026-11-13).
 
 Suggestions come in two tiers, rounded up to 0.005. The soak ends when each
 corner against the middle stays within *band* of its final value and the whole bed rises at most
@@ -454,10 +463,8 @@ shown as *best*.
   still gave good PLA first layers at 50 °C, which is why `soak_minutes` caps
   the tuned soak (see "Settings resolution").
 - `mesh_check_tolerance`: max(0.02 / 0.015, 2x / 1.5x the worst check mean +
-  2x noise, 1.5x / 1.2x the worst single point); `mesh_check_shape_tolerance`:
-  max(minimum, 2x / 1.5x the worst check shape); the check tolerance is raised
-  to at least the shape tolerance (a larger shape tolerance would bypass the
-  single-point limit).
+  2x noise, 1.5x / 1.2x the worst single point). Results saved before
+  2026-11-16 also hold a `mesh_check_shape_tolerance`, which is ignored.
 - `soak_stable_mm_per_min`: the largest rate that doesn't end the dynamic soak
   too early on this curve, or `0` (see "Dynamic soak").
 
@@ -506,11 +513,11 @@ adds Close and shows it). Close runs `_K2_PROMPT_CLOSE` (`action:prompt_end`).
 | Hook | How | Why there |
 |---|---|---|
 | `START_PRINT` | section renamed (migration 1) | entry point |
-| `BED_MESH_CALIBRATE` | `rename_existing` (real built-in) | follows the plan only in phase `starting` **and** while `print_stats` says a print is running or paused; a manual `G29` or the app's calibration always calibrates normally, and so does leveling from the display after a print died with the phase left behind (review 2026-11-13, R-03) |
+| `BED_MESH_CALIBRATE` | `rename_existing` (real built-in) | follows the plan only in phase `starting` **and** while `print_stats` says a print is running or paused; a manual `G29` or the app's calibration always calibrates normally, and so does leveling from the display after a print died with the phase left behind (2026-11-13) |
 | `BED_MESH_CALIBRATE_START_PRINT` | renamed (migration 1) | older firmware's app calls it for "Print Calibration" (before `START_PRINT`); sets phase `app_mesh`, runs stock, so `START_PRINT` skips its mesh step. Current firmware uses `G29` instead, detected via `_K2.fresh_mesh` (see Firmware behavior) |
 | `END_PRINT` | renamed (migration 1) | stock `CANCEL_PRINT` calls it first, so it also sees a cancel |
 | `PRINT_PREPARE_CLEAR` | renamed (migration 1) | `END_PRINT_STOCK`, `MOTOR_CANCEL_PRINT` (bypasses `END_PRINT`; probably Creality's cancel on motor/collision errors) and `START_PRINT_STOCK` call it; outside phase `starting` it means the print ended or was aborted → `_K2_RESET`. Safety net for every abort path that skips `END_PRINT`: an armed soak timer would otherwise later run the whole start sequence on an idle printer |
-| `RESUME_EXTERNAL_PROCESS` | renamed (migration 1) | stock `RESUME` (touchscreen, slicer, Moonraker) runs it before `RESUME_BASE`. During the soak wait it runs `_K2_FINISH_WAIT` (start sequence) instead of the stock part, so `RESUME_BASE` then continues a fully started print: resume = skip the rest of the soak. While our print runs unpaused (resume pressed during the start sequence, queued behind it) it skips the stock part, which would otherwise extrude ~80 mm. Phase `starting` **and still paused** means the start sequence died on an error inside the tick (Klipper only aborts that script, see below): resume then runs `_K2_FINISH_WAIT` again, i.e. one more attempt, and says so. Before, that case fell through to the stock part and `RESUME_BASE`, so the file printed on without the rest of the sequence and without the Z-offset (review 2026-11-13, R-02). A repeated failure leaves the print paused again, so the user can retry or cancel. Otherwise stock. An earlier version raised an error to block the resume: the touchscreen and the slicer then showed a spinner with no controls until the soak ended, since they wait for `RESUME_BASE`'s confirmation (`key602`) |
+| `RESUME_EXTERNAL_PROCESS` | renamed (migration 1) | stock `RESUME` (touchscreen, slicer, Moonraker) runs it before `RESUME_BASE`. During the soak wait it runs `_K2_FINISH_WAIT` (start sequence) instead of the stock part, so `RESUME_BASE` then continues a fully started print: resume = skip the rest of the soak. While our print runs unpaused (resume pressed during the start sequence, queued behind it) it skips the stock part, which would otherwise extrude ~80 mm. Phase `starting` **and still paused** means the start sequence died on an error inside the tick (Klipper only aborts that script, see below): resume then runs `_K2_FINISH_WAIT` again, i.e. one more attempt, and says so. Before, that case fell through to the stock part and `RESUME_BASE`, so the file printed on without the rest of the sequence and without the Z-offset (2026-11-13). A repeated failure leaves the print paused again, so the user can retry or cancel. Otherwise stock. An earlier version raised an error to block the resume: the touchscreen and the slicer then showed a spinner with no controls until the soak ended, since they wait for `RESUME_BASE`'s confirmation (`key602`) |
 | `PRINT_TEMP_SET` | renamed (migration 1) | the app calls it only while preparing a print job, before its own calibration; sets `_K2.job_prepared` so that calibration marks a fresh mesh (see Firmware behavior) |
 
 `CANCEL_PRINT` and `RESUME` can't be hooked themselves: see
@@ -524,8 +531,7 @@ print running, and `K2_TUNE`, `K2_SCREWS_TILT` and `APPLY_MATERIAL_Z_OFFSET`
 refused until a Klipper restart. Each of them now compares the phase with
 `print_stats` and, when it is left over, calls `_K2_PHASE_SYNC` (`00_state.cfg`)
 instead of refusing: one warning, then `_K2_RESET`. They test the condition
-themselves because a macro's own render can't see a reset it triggers (review
-2026-11-13, R-03).
+themselves because a macro's own render can't see a reset it triggers (2026-11-13).
 
 ## Settings resolution
 
@@ -548,18 +554,17 @@ user chose a single switch over per-material values; `K2_TUNE_PROFILE=` on the
 `START_PRINT` line overrides it, the only `K2_*` param that takes a word) is on and save_variables `k2_tune` has a result for the print's mesh
 temperature (`max(BED_TEMP, default_bed_temp)`, exact match: the bed behaves
 too differently between 50 and 70 °C to borrow), that tier's values replace
-`soak_minutes` (see below), `mesh_stable_*`, `soak_stable_mm_per_min` and `mesh_check_tolerance`/`_shape_tolerance`
+`soak_minutes` (see below), `mesh_stable_*`, `soak_stable_mm_per_min` and `mesh_check_tolerance`
 (source `K2_TUNE <tier> <temp>C`). Exception (user decision 2026-10-11, after
 `K2_TUNE` 50 °C suggested 15 min where 5 gave good PLA first layers):
 `soak_minutes` from the config is a cap, the tuned soak only applies if it is
 shorter; otherwise the source reads `config, K2_TUNE <tier> <temp>C suggests
 <n>` (`Plan:` line, `K2_STATUS`). A `K2_SOAK_MINUTES=` param still sets it
-outright. Second exception: `mesh_check_tolerance`,
-`mesh_check_shape_tolerance` and `mesh_stable_tolerance` set to 0 in the config
-stay 0, since 0 means "don't check" and their default is not 0, so a 0 can only
-be deliberate; the source then reads `config (0, off), K2_TUNE … suggests <n>`.
-Before, `tune_profile` switched a check the user had turned off back on (review
-2026-11-13, R-08). `soak_stable_mm_per_min` is not in that group: its default
+outright. Second exception: `mesh_check_tolerance` and
+`mesh_stable_tolerance` set to 0 in the config stay 0, since 0 means "don't
+check" and their default is not 0, so a 0 can only be deliberate; the source
+then reads `config (0, off), K2_TUNE … suggests <n>`.
+Before, `tune_profile` switched a check the user had turned off back on (2026-11-13). `soak_stable_mm_per_min` is not in that group: its default
 *is* 0, so a config 0 can't be told from an unset value. Results saved before
 the tiers existed
 count as *best*. A missing result or an unknown value gets a console line and
